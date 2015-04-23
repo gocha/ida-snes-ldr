@@ -23,7 +23,12 @@ ea_t calc_addr(const op_t &x, ea_t *orig_ea)
       ea = x.addr;
       goto XLAT_ADDR;
     case o_mem:
-      ea = toEA(dataSeg_op(x.n), x.addr);
+      if (x.dtyp == dt_3byte) {
+        ea = x.addr;
+      }
+      else {
+        ea = toEA(dataSeg_op(x.n), x.addr);
+      }
 XLAT_ADDR:
       if ( orig_ea != NULL )
         *orig_ea = ea;
