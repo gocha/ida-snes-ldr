@@ -51,8 +51,9 @@ static sel_t map_mode_20(linput_t *li, uint32 rom_start_in_file, uint32 rom_size
   // 32KB chunks count
   uint32 chunks = rom_size / 0x8000;
 
+  // Banks 80 -> ff
   sel_t start_sel = 0;
-  for ( uint32 mapped = 0, bank = 0; mapped < chunks; bank++, mapped++ )
+  for ( uint32 mapped = 0, bank = 0x80; mapped < chunks; bank++, mapped++ )
   {
     ea_t start         = (bank << 16) + 0x8000;
     ea_t end           = start + 0x8000;
@@ -67,7 +68,7 @@ static sel_t map_mode_20(linput_t *li, uint32 rom_start_in_file, uint32 rom_size
     if ( !add_segm(selector, start, end, seg_name, "BANK_ROM") )
       loader_failure("Failed adding .BANK segment\n");
 
-    if ( bank == 0 )
+    if ( bank == 0x80 )
       start_sel = selector;
   }
 

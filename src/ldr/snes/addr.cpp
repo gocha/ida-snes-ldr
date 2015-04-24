@@ -39,7 +39,12 @@ static xlator_t xlator = NULL;
 // 0x0000  -------------------------------------------------------------------------------
 static ea_t xlat_20(ea_t address)
 {
-  return address & 0x7fffff;
+  if ((address & 0x8000) != 0) {
+    return 0x800000 | (address & 0x7fffff);
+  }
+  else {
+    return address & 0x7fffff;
+  }
 }
 
 //----------------------------------------------------------------------------
