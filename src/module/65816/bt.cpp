@@ -283,6 +283,24 @@ int32 backtrack_value(ea_t from_ea, uint8 size, btsource_t source)
       }
     }
     break;
+    case BT_DP:
+    {
+      while ( true )
+      {
+        BTWALK_PREAMBLE(cur_ea, opcode, itype);
+        switch( itype )
+        {
+          // All these modify D in a way we cannot
+          // easily determine its value anymore.
+          // We'll thus stop.
+          case M65816_pld:    // Pull D
+            return backtrack_value(cur_ea, size, BT_STACK);
+          case M65816_tcd:    // Transfer 16-bit Accumulator to Direct Page Register
+            return backtrack_value(cur_ea, size, BT_A);
+        }
+      }
+    }
+    break;
     default:
       msg("WARNING: backtrack_value() of unsupported BT-type: %d\n", source);
       break;

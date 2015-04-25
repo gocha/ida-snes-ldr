@@ -11,7 +11,8 @@ enum btsource_t
   BT_STACK,
   BT_A,
   BT_X,
-  BT_Y
+  BT_Y,
+  BT_DP
 };
 
 

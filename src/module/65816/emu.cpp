@@ -113,7 +113,52 @@ int idaapi emu(void)
   if ( flow )
     ua_add_cref(0,cmd.ea+cmd.size,fl_F);
 
+  uint8 code = get_byte(cmd.ea);
+  const struct opcode_info_t &opinfo = get_opcode_info(code);
 
+  switch ( opinfo.addr )
+  {
+    case ABS_LONG_IX:
+      {
+        ea_t orig_ea = cmd.Op1.addr;
+        ea_t ea = xlat(orig_ea);
+
+        bool read_access;
+        if ( cmd.itype == M65816_sta )
+          read_access = false;
+        else
+          read_access = true;
+
+        if ( !read_access )
+          doVar(ea);
+        ua_add_dref(cmd.Op1.offb, ea, read_access ? dr_R : dr_W);
+        break;
+      }
+
+    case DP:
+      {
+        bool read_access;
+        if ( cmd.itype == M65816_tsb || cmd.itype == M65816_asl || cmd.itype == M65816_trb
+          || cmd.itype == M65816_rol || cmd.itype == M65816_lsr || cmd.itype == M65816_ror
+          || cmd.itype == M65816_dec || cmd.itype == M65816_inc )
+          read_access = false;
+        else
+          read_access = true;
+
+        int32 val = backtrack_value(cmd.ea, 2, BT_DP);
+        if ( val != -1 )
+        {
+          ea_t orig_ea = val + cmd.Op1.addr;
+          ea_t ea = xlat(orig_ea);
+
+          ua_dodata2(cmd.Op1.offb, ea, cmd.Op1.dtyp);
+          if ( !read_access )
+            doVar(ea);
+          ua_add_dref(cmd.Op1.offb, ea, read_access ? dr_R : dr_W);
+        }
+      }
+      break;
+  }
 
   switch ( cmd.itype )
   {

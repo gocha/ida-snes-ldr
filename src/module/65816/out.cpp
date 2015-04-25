@@ -9,6 +9,19 @@
  */
 
 #include "m65816.hpp"
+#include "bt.hpp"
+
+//----------------------------------------------------------------------
+void print_orig_ea(const op_t &x)
+{
+  char buf[64];
+  qsnprintf(buf, sizeof(buf),
+            COLSTR(" %s orig=0x%0*a", SCOLOR_AUTOCMT),
+            ash.cmnt,
+            x.type == o_far ? 6 : 4,
+            x.addr);
+  OutLine(buf);
+}
 
 //----------------------------------------------------------------------
 ea_t calc_addr(const op_t &x, ea_t *orig_ea)
@@ -68,13 +81,7 @@ bool idaapi outop(op_t &x)
         out_symbol(')');
       if ( orig_ea != ea )
       {
-        char buf[64];
-        qsnprintf(buf, sizeof(buf),
-                  COLSTR(" %s orig=0x%0*a", SCOLOR_AUTOCMT),
-                  ash.cmnt,
-                  x.type == o_far ? 6 : 4,
-                  x.addr);
-        OutLine(buf);
+        print_orig_ea(x);
       }
       break;
     case o_displ:
@@ -85,7 +92,32 @@ bool idaapi outop(op_t &x)
           out_register(ph.regNames[x.phrase]);
           out_symbol(',');
           OutChar(' ');
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          if ( x.phrase == rD )
+          {
+            int32 val = backtrack_value(cmd.ea, 2, BT_DP);
+            if ( val != -1 )
+            {
+              ea_t orig_ea = val + cmd.Op1.addr;
+              ea_t ea = xlat(orig_ea);
+
+              out_symbol('(');
+              if ( !out_name_expr(x, ea, BADADDR) )
+                OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+              OutChar(' ');
+              out_symbol('-');
+              OutChar(' ');
+              OutLong(ea & ~0xff, 16);
+              out_symbol(')');
+            }
+            else
+            {
+              OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+            }
+          }
+          else
+          {
+            OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          }
           break;
         case rSiY:
           out_symbol('(');
@@ -160,11 +192,27 @@ bool idaapi outop(op_t &x)
           break;
         case rAbsX:
         case rAbsY:
-        case rAbsLX:
           OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_24);
           out_symbol(',');
           OutChar(' ');
           out_register(x.phrase == rAbsY ? "Y" : "X");
+          break;
+        case rAbsLX:
+          {
+            ea_t orig_ea = cmd.Op1.addr;
+            ea_t ea = xlat(orig_ea);
+
+            if (!out_name_expr(x, ea, BADADDR))
+              OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_24);
+            out_symbol(',');
+            OutChar(' ');
+            out_register("X");
+
+            if ( orig_ea != ea )
+            {
+              print_orig_ea(x);
+            }
+          }
           break;
         case rAbsXi:
           out_symbol('(');
