@@ -39,12 +39,36 @@ static xlator_t xlator = NULL;
 // 0x0000  -------------------------------------------------------------------------------
 static ea_t xlat_20(ea_t address)
 {
-  if ((address & 0x8000) != 0) {
-    return 0x800000 | (address & 0x7fffff);
+  ea_t ret = address;
+  uint16 o = address & 0xffff;
+  uint8 k  = (address >> 16) & 0xff;
+  uint8 uk = (k >> 4) & 0xf;
+  switch ( uk )
+  {
+    case 0x0:
+    case 0x1:
+    case 0x2:
+    case 0x3:
+      if ( o < 0x2000 )
+        ret = 0x7E0000 + o;
+      else if ( o < 0x6000 )
+        ret = o;
+      else if ( o >= 0x8000 )
+        ret = ((0x80 + k) << 16) + o;
+      break;
+    case 0x8:
+    case 0x9:
+    case 0xa:
+    case 0xb:
+      if ( o < 0x2000 )
+        ret = 0x7E0000 + o;
+      else if ( o < 0x6000 )
+        ret = o;
+      break;
+    default:
+      break;
   }
-  else {
-    return address & 0x7fffff;
-  }
+  return ret;
 }
 
 //----------------------------------------------------------------------------
@@ -78,6 +102,8 @@ static ea_t xlat_21(ea_t address)
     case 0x3:
       if ( o < 0x2000 )
         ret = 0x7E0000 + o;
+      else if ( o < 0x6000 )
+        ret = o;
       else if ( o >= 0x8000 )
         ret = ((0xC0 + k) << 16) + o;
       break;
@@ -92,12 +118,12 @@ static ea_t xlat_21(ea_t address)
     case 0x9:
     case 0xa:
     case 0xb:
-      if ( o >= 0x8000 )
-        ret = ((0xC0 + (k - 0x80)) << 16) + o;
+      if ( o < 0x2000 )
+        ret = 0x7E0000 + o;
+      else if ( o < 0x6000 )
+        ret = o;
       else
-        ret = ((k - 0x80) << 16) + o;
-      break;
-    default:
+        ret = ((0xC0 + (k - 0x80)) << 16) + o;
       break;
   }
   return ret;
