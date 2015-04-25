@@ -169,6 +169,7 @@ int32 backtrack_value(ea_t from_ea, uint8 size, btsource_t source)
       while ( true )
       {
         BTWALK_PREAMBLE(cur_ea, opcode, itype);
+        uint8 opsize = from_ea - cur_ea;
         uint8 cur_ea_acc_is_16 = is_acc_16_bits(cur_ea);
         uint8 new_size = cur_ea_acc_is_16 ? 2 : 1;
         switch( itype )
@@ -200,7 +201,7 @@ int32 backtrack_value(ea_t from_ea, uint8 size, btsource_t source)
             break;
           case M65816_lda:    // Load A from memory
             if ( opcode == 0xa9 ) // LDA    imm
-              return (cur_ea_acc_is_16 ? get_word(cur_ea + 1) : get_byte(cur_ea + 1));
+              return (opsize == 3 ? get_word(cur_ea + 1) : get_byte(cur_ea + 1));
             else
               return -1;
           case M65816_pla:    // Pull A
@@ -222,6 +223,7 @@ int32 backtrack_value(ea_t from_ea, uint8 size, btsource_t source)
       while ( true )
       {
         BTWALK_PREAMBLE(cur_ea, opcode, itype);
+        uint8 opsize = from_ea - cur_ea;
         uint8 cur_ea_xy_is_16 = is_xy_16_bits(cur_ea);
         uint8 new_size = cur_ea_xy_is_16 ? 2 : 1;
         switch( itype )
@@ -236,7 +238,7 @@ int32 backtrack_value(ea_t from_ea, uint8 size, btsource_t source)
             return -1;
           case M65816_ldx:    // Load X from memory
             if ( opcode == 0xa2 ) // LDX    imm
-              return (cur_ea_xy_is_16 ? get_word(cur_ea + 1) : get_byte(cur_ea + 1));
+              return (opsize == 3 ? get_word(cur_ea + 1) : get_byte(cur_ea + 1));
             else
               return -1;
           case M65816_plx:    // Pull X
@@ -256,6 +258,7 @@ int32 backtrack_value(ea_t from_ea, uint8 size, btsource_t source)
       while ( true )
       {
         BTWALK_PREAMBLE(cur_ea, opcode, itype);
+        uint8 opsize = from_ea - cur_ea;
         uint8 cur_ea_xy_is_16 = is_xy_16_bits(cur_ea);
         uint8 new_size = cur_ea_xy_is_16 ? 2 : 1;
         switch( itype )
@@ -270,7 +273,7 @@ int32 backtrack_value(ea_t from_ea, uint8 size, btsource_t source)
             return -1;
           case M65816_ldy:    // Load Y from memory
             if ( opcode == 0xa0 ) // LDY    imm
-              return (cur_ea_xy_is_16 ? get_word(cur_ea + 1) : get_byte(cur_ea + 1));
+              return (opsize == 3 ? get_word(cur_ea + 1) : get_byte(cur_ea + 1));
             else
               return -1;
           case M65816_ply:    // Pull Y
