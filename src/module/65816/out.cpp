@@ -84,14 +84,17 @@ bool idaapi outop(op_t &x)
         case rD:
           out_register(ph.regNames[x.phrase]);
           out_symbol(',');
+          OutChar(' ');
           OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
           break;
         case rSiY:
           out_symbol('(');
           out_register("S");
           out_symbol(',');
+          OutChar(' ');
           OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
           out_symbol(',');
+          OutChar(' ');
           out_register("Y");
           out_symbol(')');
           break;
@@ -100,6 +103,7 @@ bool idaapi outop(op_t &x)
           out_symbol('(');
           out_register("D");
           out_symbol(',');
+          OutChar(' ');
           OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
           out_symbol(')');
           break;
@@ -107,6 +111,7 @@ bool idaapi outop(op_t &x)
           out_symbol('[');
           out_register("D");
           out_symbol(',');
+          OutChar(' ');
           OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
           out_symbol(']');
           break;
@@ -114,16 +119,20 @@ bool idaapi outop(op_t &x)
         case rDY:
           out_register("D");
           out_symbol(',');
+          OutChar(' ');
           OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
           out_symbol(',');
+          OutChar(' ');
           out_register((x.phrase == rDX) ? "X" : "Y");
           break;
         case riDX:
           out_symbol('(');
           out_register("D");
           out_symbol(',');
+          OutChar(' ');
           OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
           out_symbol(',');
+          OutChar(' ');
           out_register("X");
           out_symbol(')');
           break;
@@ -132,9 +141,11 @@ bool idaapi outop(op_t &x)
           out_symbol(x.phrase == rDiLY ? '[' : '(');
           out_register("D");
           out_symbol(',');
+          OutChar(' ');
           OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
           out_symbol(x.phrase == rDiLY ? ']' : ')');
           out_symbol(',');
+          OutChar(' ');
           out_register("Y");
           break;
         case rAbsi:
@@ -152,12 +163,14 @@ bool idaapi outop(op_t &x)
         case rAbsLX:
           OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_24);
           out_symbol(',');
+          OutChar(' ');
           out_register(x.phrase == rAbsY ? "Y" : "X");
           break;
         case rAbsXi:
           out_symbol('(');
           OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
           out_symbol(',');
+          OutChar(' ');
           out_register("X");
           out_symbol(')');
           break;
