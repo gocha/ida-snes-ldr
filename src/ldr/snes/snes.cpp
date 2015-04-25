@@ -199,8 +199,9 @@ static void add_interrupt_vector(uint16 addr, const char *name)
   ea_t real_ea = xlat(addr);
   doWord(real_ea, 2);
 
-  ea_t vector_addr = xlat(get_word(real_ea));
-  if ( vector_addr != 0 )
+  ea_t orig_vector_addr = get_word(real_ea);
+  ea_t vector_addr = xlat(orig_vector_addr);
+  if ( orig_vector_addr != 0 && orig_vector_addr != 0xffff )
   {
     // Set 'vector_addr' name to be 'name'
     set_name(vector_addr, name, SN_NOCHECK);
