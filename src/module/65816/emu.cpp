@@ -35,6 +35,7 @@ MAKE_IMMD:
       break;
 
     case o_mem:
+MAKE_MEM:
       ea = calc_addr(x);
       ua_dodata2(x.offb, ea, x.dtyp);
       if ( !read_access )
@@ -50,6 +51,12 @@ MAKE_IMMD:
         if ( cmd.itype == M65816_per )
         {
           ua_add_dref(x.offb, ea, dr_O);
+        }
+        else if ( cmd.itype == M65816_ora || cmd.itype == M65816_and || cmd.itype == M65816_eor
+          || cmd.itype == M65816_adc || cmd.itype == M65816_sta || cmd.itype == M65816_lda
+          || cmd.itype == M65816_cmp || cmd.itype == M65816_sbc )
+        {
+          goto MAKE_MEM;
         }
         else
         {

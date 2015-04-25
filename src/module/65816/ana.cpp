@@ -426,30 +426,72 @@ int idaapi ana(void)
       cmd.Op1.dtyp = dt_word;
       cmd.Op1.full_target_ea = cmd.Op1.addr;
       if ( cmd.itype == M65816_jsr || cmd.itype == M65816_jmp )
+      {
         cmd.Op1.type = o_near;
+      }
+      else if ( cmd.itype == M65816_stx || cmd.itype == M65816_sty
+        || cmd.itype == M65816_ldx || cmd.itype == M65816_ldy
+        || cmd.itype == M65816_cpx || cmd.itype == M65816_cpy)
+      {
+        if ( is_xy_16_bits () )
+          cmd.Op1.dtyp = dt_word;
+        else
+          cmd.Op1.dtyp = dt_byte;
+      }
+      else
+      {
+        if ( is_acc_16_bits () )
+          cmd.Op1.dtyp = dt_word;
+        else
+          cmd.Op1.dtyp = dt_byte;
+      }
       break;
     case ABS_LONG:
-      cmd.Op1.type = o_mem;
+      cmd.Op1.type = o_far;
       cmd.Op1.addr = ua_next_word();
       cmd.Op1.addr|= ua_next_byte() << 16;
-      cmd.Op1.dtyp = dt_3byte;
       cmd.Op1.full_target_ea = cmd.Op1.addr;
       if ( cmd.itype == M65816_jsl || cmd.itype == M65816_jml )
+      {
         cmd.Op1.type = o_far;
+      }
+      else
+      {
+        if ( is_acc_16_bits () )
+          cmd.Op1.dtyp = dt_word;
+        else
+          cmd.Op1.dtyp = dt_byte;
+      }
       break;
     case ABS_IX:
     case ABS_IY:
       cmd.Op1.type   = o_displ;
       cmd.Op1.phrase = opinfo.addr == ABS_IX ? rAbsX : rAbsY;
       cmd.Op1.addr   = ua_next_word();
-      cmd.Op1.dtyp   = dt_word;
+      if ( cmd.itype == M65816_ldx || cmd.itype == M65816_ldy )
+      {
+        if ( is_xy_16_bits () )
+          cmd.Op1.dtyp = dt_word;
+        else
+          cmd.Op1.dtyp = dt_byte;
+      }
+      else
+      {
+        if ( is_acc_16_bits () )
+          cmd.Op1.dtyp = dt_word;
+        else
+          cmd.Op1.dtyp = dt_byte;
+      }
       break;
     case ABS_LONG_IX:
       cmd.Op1.type   = o_displ;
       cmd.Op1.phrase = rAbsLX;
       cmd.Op1.addr   = ua_next_word();
       cmd.Op1.addr  |= ua_next_byte() << 16;
-      cmd.Op1.dtyp   = dt_3byte;
+      if ( is_acc_16_bits () )
+        cmd.Op1.dtyp = dt_word;
+      else
+        cmd.Op1.dtyp = dt_byte;
       break;
     case ABS_INDIR:
       cmd.Op1.type   = o_displ;
@@ -473,40 +515,88 @@ int idaapi ana(void)
       cmd.Op1.type   = o_displ;
       cmd.Op1.phrase = rD;
       cmd.Op1.addr   = ua_next_byte();
-      cmd.Op1.dtyp   = dt_byte;
+      if ( cmd.itype == M65816_stx || cmd.itype == M65816_sty
+        || cmd.itype == M65816_ldx || cmd.itype == M65816_ldy
+        || cmd.itype == M65816_cpx || cmd.itype == M65816_cpy)
+      {
+        if ( is_xy_16_bits () )
+          cmd.Op1.dtyp = dt_word;
+        else
+          cmd.Op1.dtyp = dt_byte;
+      }
+      else
+      {
+        if ( is_acc_16_bits () )
+          cmd.Op1.dtyp = dt_word;
+        else
+          cmd.Op1.dtyp = dt_byte;
+      }
       break;
     case DP_IY:
     case DP_IX:
       cmd.Op1.type   = o_displ;
       cmd.Op1.phrase = opinfo.addr == DP_IX ? rDX : rDY;
       cmd.Op1.addr   = ua_next_byte();
-      cmd.Op1.dtyp   = dt_byte;
+      if ( cmd.itype == M65816_stx || cmd.itype == M65816_sty
+        || cmd.itype == M65816_ldx || cmd.itype == M65816_ldy)
+      {
+        if ( is_xy_16_bits () )
+          cmd.Op1.dtyp = dt_word;
+        else
+          cmd.Op1.dtyp = dt_byte;
+      }
+      else
+      {
+        if ( is_acc_16_bits () )
+          cmd.Op1.dtyp = dt_word;
+        else
+          cmd.Op1.dtyp = dt_byte;
+      }
       break;
     case DP_IX_INDIR:
       cmd.Op1.type   = o_displ;
       cmd.Op1.phrase = riDX;
       cmd.Op1.addr   = ua_next_byte();
-      cmd.Op1.dtyp   = dt_byte;
+      if ( is_acc_16_bits () )
+        cmd.Op1.dtyp = dt_word;
+      else
+        cmd.Op1.dtyp = dt_byte;
       break;
     case DP_INDIR:
       cmd.Op1.type   = o_displ;
       cmd.Op1.phrase = rDi;
       cmd.Op1.addr   = ua_next_byte();
+      if ( is_acc_16_bits () )
+        cmd.Op1.dtyp = dt_word;
+      else
+        cmd.Op1.dtyp = dt_byte;
       break;
     case DP_INDIR_LONG:
       cmd.Op1.type   = o_displ;
       cmd.Op1.phrase = rDiL;
       cmd.Op1.addr   = ua_next_byte();
+      if ( is_acc_16_bits () )
+        cmd.Op1.dtyp = dt_word;
+      else
+        cmd.Op1.dtyp = dt_byte;
       break;
     case DP_INDIR_IY:
       cmd.Op1.type   = o_displ;
       cmd.Op1.phrase = rDiY;
       cmd.Op1.addr   = ua_next_byte();
+      if ( is_acc_16_bits () )
+        cmd.Op1.dtyp = dt_word;
+      else
+        cmd.Op1.dtyp = dt_byte;
       break;
     case DP_INDIR_LONG_IY:
       cmd.Op1.type   = o_displ;
       cmd.Op1.phrase = rDiLY;
       cmd.Op1.addr   = ua_next_byte();
+      if ( is_acc_16_bits () )
+        cmd.Op1.dtyp = dt_word;
+      else
+        cmd.Op1.dtyp = dt_byte;
       break;
     case PC_REL:
       cmd.Op1.type = o_near;
