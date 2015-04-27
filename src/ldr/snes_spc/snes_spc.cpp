@@ -28,7 +28,7 @@ static sel_t map_psram(linput_t *li, uint32 psram_start_in_file)
   if ( !file2base(li, psram_start_in_file, s.startEA, s.endEA, FILEREG_PATCHABLE) )
     loader_failure("Failed mapping 0x%x -> [0x%a, 0x%a)\n", psram_start_in_file, s.startEA, s.endEA);
 
-  add_segm_ex(&s, "PSRAM", NULL, ADDSEG_NOSREG);
+  add_segm_ex(&s, "RAM", NULL, ADDSEG_NOSREG);
   return s.sel;
 }
 
