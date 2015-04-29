@@ -374,20 +374,20 @@ int idaapi ana(void)
       }
       break;
     case INDIR_IX:
-      cmd.Operands[op_i].type = o_displ;
+      cmd.Operands[op_i].type = o_phrase;
       cmd.Operands[op_i].phrase = riX;
       op_i++;
       break;
     case INDIR_IX_INC:
-      cmd.Operands[op_i].type = o_displ;
+      cmd.Operands[op_i].type = o_phrase;
       cmd.Operands[op_i].phrase = riXinc;
       op_i++;
       break;
     case INDIR_IX_IY:
-      cmd.Operands[op_i].type = o_displ;
+      cmd.Operands[op_i].type = o_phrase;
       cmd.Operands[op_i].phrase = riX;
       op_i++;
-      cmd.Operands[op_i].type = o_displ;
+      cmd.Operands[op_i].type = o_phrase;
       cmd.Operands[op_i].phrase = riY;
       op_i++;
       break;

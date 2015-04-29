@@ -26,6 +26,7 @@ static void handle_operand(op_t &x, bool read_access)
   {
     case o_void:
     case o_reg:
+    case o_phrase:
       break;
 
     case o_imm:

@@ -39,6 +39,25 @@ bool idaapi outop(op_t &x)
       if ( cmd.indirect )
         out_symbol(')');
       break;
+    case o_phrase:
+      switch ( x.phrase )
+      {
+        case riX:
+        case riY:
+          out_symbol('(');
+          out_register(x.phrase == riX ? ph.regNames[rX] : ph.regNames[rY]);
+          out_symbol(')');
+          break;
+        case riXinc:
+          out_symbol('(');
+          out_register(ph.regNames[rX]);
+          out_symbol(')');
+          out_symbol('+');
+          break;
+        default:
+          goto err;
+      }
+      break;
     case o_displ:
       switch ( x.phrase )
       {
@@ -83,18 +102,6 @@ bool idaapi outop(op_t &x)
           out_symbol('+');
           out_register(ph.regNames[rX]);
           out_symbol(')');
-          break;
-        case riX:
-        case riY:
-          out_symbol('(');
-          out_register(x.phrase == riX ? ph.regNames[rX] : ph.regNames[rY]);
-          out_symbol(')');
-          break;
-        case riXinc:
-          out_symbol('(');
-          out_register(ph.regNames[rX]);
-          out_symbol(')');
-          out_symbol('+');
           break;
         case rDbitnot:
           out_symbol('/');

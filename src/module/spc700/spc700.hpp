@@ -67,6 +67,15 @@ enum spc_addrmode_t
 };
 
 // The various phrases that can be used in case
+// an operand is of type 'o_phrase'.
+enum ophrase_phrases_t
+{
+  riX = 100, // "(X)"                INDIR_IX
+  riY,       // "(Y)"                INDIR_IY
+  riXinc,    // "(X)+"               INDIR_IX_INC
+};
+
+// The various phrases that can be used in case
 // an operand is of type 'o_displ'.
 enum odispl_phrases_t
 {
@@ -78,9 +87,6 @@ enum odispl_phrases_t
   rAbsY,     // "abs, Y"             ABS_IY
   rAbsXi,    // "(abs,X)"            ABS_IX_INDIR
   rDiY,      // "(dp,n), Y"          DP_INDIR_IY
-  riX,       // "(X)"                INDIR_IX
-  riY,       // "(Y)"                INDIR_IY
-  riXinc,    // "(X)+"               INDIR_IX_INC
   rDbit,     //                      (for bit tests)
   rDbitnot,  //                      (for bit tests)
   rTCall,    //                      (for tcall)
