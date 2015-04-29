@@ -126,7 +126,7 @@ instruc_t Instructions[] = {
 { "mov",        CF_CHG1|CF_USE2                 },
 { "mov",        CF_CHG1|CF_USE2                 },
 { "mov",        CF_CHG1|CF_USE2                 },
-{ "tcall",      CF_CALL                         },
+{ "tcall",      CF_USE1|CF_CALL                 },
 { "tclr1",      CF_USE1|CF_CHG1                 },
 { "tset1",      CF_USE1|CF_CHG1                 },
 { "xcn",        0                               },

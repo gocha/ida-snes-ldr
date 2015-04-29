@@ -430,7 +430,10 @@ int idaapi ana(void)
       cmd.Operands[op_i].type   = o_displ;
       cmd.Operands[op_i].phrase = rAbsXi;
       cmd.Operands[op_i].addr   = ua_next_word();
-      cmd.Operands[op_i].dtyp   = dt_byte;
+      if ( cmd.itype == SPC_jmp )
+        cmd.Operands[op_i].dtyp = dt_word;
+      else
+        cmd.Operands[op_i].dtyp = dt_byte;
       op_i++;
       break;
     case BIT_OP:

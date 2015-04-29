@@ -18,50 +18,89 @@ static void doImmdValue(void)
 }
 
 //----------------------------------------------------------------------
-static void TouchArg(op_t &x,int isload)
+static void handle_operand(op_t &x, bool read_access)
 {
   ea_t ea;
-  dref_t xreftype;
+  dref_t dreftype;
   switch ( x.type )
   {
+    case o_void:
     case o_reg:
       break;
+
     case o_imm:
-      if ( !isload ) goto badTouch;
-      xreftype = dr_O;
-      goto MAKE_IMMD;
-    case o_displ:
-      xreftype = isload ? dr_R : dr_W;
+      QASSERT(557, read_access);
+      dreftype = dr_O;
 MAKE_IMMD:
       doImmdValue();
-      if ( op_adds_xrefs(uFlag,x.n) )
-        ua_add_off_drefs(x, xreftype);
+      if ( isOff(uFlag, x.n) )
+        ua_add_off_drefs(x, dreftype);
       break;
-    case o_mem:
-      ea = toEA(dataSeg_op(x.n),x.addr);
-      ua_dodata2(x.offb, ea, x.dtyp);
-      if ( ! isload )
-        doVar(ea);
-      ua_add_dref(x.offb,ea,isload ? dr_R : dr_W);
-      break;
-    case o_near:
+
+    case o_displ:
+      dreftype = read_access ? dr_R : dr_W;
+      switch ( x.phrase )
       {
-        ea_t segbase = codeSeg(x.addr,x.n);
-        ea = toEA(segbase,x.addr);
-        ea_t thisseg = cmd.cs;
-        int iscall = InstrIsSet(cmd.itype, CF_CALL);
-        ua_add_cref(x.offb,
-                    ea,
-                    iscall ? ((segbase == thisseg) ? fl_CN : fl_CF)
-                           : ((segbase == thisseg) ? fl_JN : fl_JF));
+        case rD:        // "dp"
+        case rDX:       // "dp, X"
+        case rDY:       // "dp, Y"
+        case riDX:      // "(dp, X)"
+        case rDiY:      // "(dp,n), Y"
+          // TODO: backtrack direct page register
+          goto MAKE_IMMD;
+
+        case rAbsX:     // "abs, X"
+        case rAbsY:     // "abs, Y"
+        case rAbsXi:    // "(abs,X)"
+        case rDbit:     // "abs.n"
+        case rDbitnot:  // "/abs.n"
+          goto MAKE_DREF;
+
+        case rTCall:    // "tcall n"
+        case rPCall:    // "pcall n"
+          ea = x.addr;
+          goto MAKE_CREF;
+
+        default:
+          goto MAKE_IMMD;
+      }
+      break;
+
+    case o_mem:
+MAKE_DREF:
+      ea = toEA(dataSeg_op(x.n), x.addr);
+      ua_dodata2(x.offb, ea, x.dtyp);
+      if ( !read_access )
+        doVar(ea);
+      ua_add_dref(x.offb, ea, read_access ? dr_R : dr_W);
+      break;
+
+    case o_near:
+    case o_far:
+      {
+        if ( x.type == o_near )
+        {
+          ea_t segbase = codeSeg(x.addr, x.n);
+          ea = toEA(segbase, x.addr);
+        }
+        else
+        {
+          ea = x.addr;
+        }
+
+MAKE_CREF:
+        bool iscall = InstrIsSet(cmd.itype, CF_CALL);
+        cref_t creftype = x.type == o_near
+                        ? iscall ? fl_CN : fl_JN
+                        : iscall ? fl_CF : fl_JF;
+        ua_add_cref(x.offb, ea, creftype);
         if ( flow && iscall )
           flow = func_does_return(ea);
       }
       break;
+
     default:
-badTouch:
-      warning("%a: %s,%d: bad optype %d", cmd.ea, cmd.get_canon_mnem(), x.n, x.type);
-      break;
+      INTERR(558);
   }
 }
 
@@ -71,11 +110,27 @@ int idaapi emu(void)
   uint32 Feature = cmd.get_canon_feature();
   flow = ((Feature & CF_STOP) == 0);
 
-  if ( Feature & CF_USE1 ) TouchArg(cmd.Op1, 1);
-  if ( Feature & CF_USE2 ) TouchArg(cmd.Op2, 1);
-  if ( Feature & CF_CHG1 ) TouchArg(cmd.Op1, 0);
-  if ( Feature & CF_CHG2 ) TouchArg(cmd.Op2, 0);
+  if ( Feature & CF_USE1 ) handle_operand(cmd.Op1, 1);
+  if ( Feature & CF_USE2 ) handle_operand(cmd.Op2, 1);
+  if ( Feature & CF_CHG1 ) handle_operand(cmd.Op1, 0);
+  if ( Feature & CF_CHG2 ) handle_operand(cmd.Op2, 0);
   if ( Feature & CF_JUMP ) QueueSet(Q_jumps,cmd.ea);
+
+  uint8 code = get_byte(cmd.ea);
+  const struct opcode_info_t &opinfo = get_opcode_info(code);
+
+  if ( opinfo.itype == SPC_jmp )
+  {
+    if ( opinfo.addr == ABS_IX_INDIR ) {
+      QueueSet(Q_jumps,cmd.ea);
+
+      // mark the jump table content as a offset, and mark the destination address as code
+      // note: sometimes the real table is located at another address (e.g. Super Mario World)
+      //ea_t ea = get_word(cmd.Op1.addr);
+      //op_offset(cmd.Op1.addr, 0, REF_OFF16, ea);
+      //add_cref(cmd.Op1.addr, ea, fl_JN);
+    }
+  }
 
   if ( flow )
     ua_add_cref(0,cmd.ea+cmd.size,fl_F);

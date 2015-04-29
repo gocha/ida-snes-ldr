@@ -43,37 +43,43 @@ bool idaapi outop(op_t &x)
       switch ( x.phrase )
       {
         case rD:
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          //if ( !out_name_expr(x, x.addr, BADADDR) )
+            OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
           break;
         case rDX:
         case rDY:
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          //if ( !out_name_expr(x, x.addr, BADADDR) )
+            OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
           out_symbol('+');
           out_register(x.phrase == rDX ? ph.regNames[rX] : ph.regNames[rY]);
           break;
         case riDX:
           out_symbol('(');
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          //if ( !out_name_expr(x, x.addr, BADADDR) )
+            OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
           out_symbol('+');
           out_register(ph.regNames[rX]);
           out_symbol(')');
           break;
         case rDiY:
           out_symbol('(');
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          //if ( !out_name_expr(x, x.addr, BADADDR) )
+            OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
           out_symbol(')');
           out_symbol('+');
           out_register(ph.regNames[rY]);
           break;
         case rAbsX:
         case rAbsY:
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
+          if ( !out_name_expr(x, x.addr, BADADDR) )
+            OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
           out_symbol('+');
           out_register(x.phrase == rAbsX ? ph.regNames[rX] : ph.regNames[rY]);
           break;
         case rAbsXi:
           out_symbol('(');
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
+          if ( !out_name_expr(x, x.addr, BADADDR) )
+            OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
           out_symbol('+');
           out_register(ph.regNames[rX]);
           out_symbol(')');
@@ -94,7 +100,8 @@ bool idaapi outop(op_t &x)
           out_symbol('/');
           // fall through
         case rDbit:
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
+          if ( !out_name_expr(x, x.addr, BADADDR) )
+            OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
           out_symbol('.');
           OutValue(x, 0);
           break;
