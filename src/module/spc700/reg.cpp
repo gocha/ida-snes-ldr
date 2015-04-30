@@ -241,7 +241,7 @@ static const asm_t xladxasm =
   NULL,         // headers
   NULL,
   ".org",
-  ".end",
+  NULL,
 
   ";",          // comment string
   '"',          // string delimiter
