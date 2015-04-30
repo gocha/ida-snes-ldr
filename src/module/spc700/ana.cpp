@@ -413,7 +413,10 @@ int idaapi ana(void)
       cmd.Operands[op_i].type = o_mem;
       cmd.Operands[op_i].addr = ua_next_word();
       if ( cmd.itype == SPC_call || cmd.itype == SPC_jmp )
+      {
         cmd.Operands[op_i].type = o_near;
+        cmd.Operands[op_i].full_target_ea = cmd.Operands[op_i].addr;
+      }
       else
         cmd.Operands[op_i].dtyp = dt_byte;
       op_i++;

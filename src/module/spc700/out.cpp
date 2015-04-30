@@ -11,6 +11,40 @@
 #include "spc700.hpp"
 
 //----------------------------------------------------------------------
+static void out_dp(op_t &x)
+{
+  sel_t dp = get_segreg(cmd.ea, rFp);
+  if ( dp != BADSEL )
+  {
+    ea_t ea = (dp << 8) | x.addr;
+
+    if ( dp != 0 )
+      out_symbol('(');
+
+    if ( !out_name_expr(x, ea, BADADDR) )
+    {
+      out_tagon(COLOR_ERROR);
+      OutLong(ea, 16);
+      out_tagoff(COLOR_ERROR);
+      QueueSet(Q_noName, cmd.ea);
+    }
+
+    if ( dp != 0 )
+    {
+      out_symbol(' ');
+      out_symbol('-');
+      out_symbol(' ');
+      OutLong(dp << 8, 16);
+      out_symbol(')');
+    }
+  }
+  else
+  {
+    OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+  }
+}
+
+//----------------------------------------------------------------------
 bool idaapi outop(op_t &x)
 {
   ea_t ea;
@@ -62,28 +96,24 @@ bool idaapi outop(op_t &x)
       switch ( x.phrase )
       {
         case rD:
-          //if ( !out_name_expr(x, x.addr, BADADDR) )
-            OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          out_dp(x);
           break;
         case rDX:
         case rDY:
-          //if ( !out_name_expr(x, x.addr, BADADDR) )
-            OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          out_dp(x);
           out_symbol('+');
           out_register(x.phrase == rDX ? ph.regNames[rX] : ph.regNames[rY]);
           break;
         case riDX:
           out_symbol('(');
-          //if ( !out_name_expr(x, x.addr, BADADDR) )
-            OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          out_dp(x);
           out_symbol('+');
           out_register(ph.regNames[rX]);
           out_symbol(')');
           break;
         case rDiY:
           out_symbol('(');
-          //if ( !out_name_expr(x, x.addr, BADADDR) )
-            OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          out_dp(x);
           out_symbol(')');
           out_symbol('+');
           out_register(ph.regNames[rY]);
@@ -130,6 +160,48 @@ bool idaapi outop(op_t &x)
       break;
   }
   return 1;
+}
+
+//----------------------------------------------------------------------
+inline bool forced_print(ea_t ea, int reg)
+{
+  return isFunc(get_flags_novalue(ea));
+}
+
+//----------------------------------------------------------------------
+void idaapi assumes(ea_t ea)
+{
+  char buf[MAXSTR];
+  char *ptr = buf;
+  char *end = buf + sizeof(buf);
+  for ( int reg=ph.regFirstSreg; reg <= ph.regLastSreg; reg++ )
+  {
+    if ( reg == rCs || reg == rDs )
+      continue;
+    segreg_area_t srarea;
+    get_srarea2(&srarea, ea, reg);
+    segreg_area_t prev;
+    bool prev_exists = get_srarea2(&prev, ea - 1, reg);
+    // if 'prev' does not exist, force to print because we are at
+    // the beginning of the segment
+    sel_t curval  = srarea.val;
+    sel_t prevval = prev_exists ? prev.val : curval - 1;
+    if ( curval != prevval || forced_print(ea, reg) )
+    {
+      if ( reg == rFp )
+      {
+        gen_cmt_line("P=%d", curval);
+      }
+      else
+      {
+        if ( ptr != buf )
+          APPCHAR(ptr, end, ' ');
+        ptr += qsnprintf(ptr, end-ptr, "%s=%a", ph.regNames[reg], curval);
+      }
+    }
+  }
+  if ( ptr != buf )
+    gen_cmt_line("%s", buf);
 }
 
 //----------------------------------------------------------------------

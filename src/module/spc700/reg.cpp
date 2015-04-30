@@ -18,11 +18,14 @@ static const char *const RegNames[] =
   "y",
   "ya",
   "sp",
+  "psw",
+
+  "C",
+
   "Cs",
   "Ds",
 
-  "psw",
-  "C",
+  "P",
 };
 
 //----------------------------------------------------------------------
@@ -42,6 +45,8 @@ static int idaapi notify(processor_t::idp_notify msgid, ...) // Various messages
   switch ( msgid )
   {
     case processor_t::newfile:
+      set_default_segreg_value(NULL, rDs, 0);
+      set_default_segreg_value(NULL, rFp,  0);
       break;
 
     default:
@@ -104,7 +109,7 @@ processor_t LPH =
 {
   IDP_INTERFACE_VERSION,// version
   PLFM_SPC700,          // id
-  0,                    // flags
+  PR_SEGS|PR_SEGTRANS,  // flags
   8,                    // 8 bits in a byte for code segments
   8,                    // 8 bits in a byte for other segments
 
@@ -121,7 +126,7 @@ processor_t LPH =
   segstart,
   std_gen_segm_footer,
 
-  NULL,                 // assumes,
+  assumes,
 
   ana,
   emu,
@@ -142,7 +147,7 @@ processor_t LPH =
   NULL,                         // Pointer to CPU registers
 
   rCs,                          // first segreg
-  rDs,                          // last  segreg
+  rFp,                          // last  segreg
   0,                            // size of a segment register
   rCs,                          // number of CS register
   rDs,                          // number of DS register
@@ -150,6 +155,7 @@ processor_t LPH =
   NULL,                         // No known code start sequences
   retcodes,
 
-  0,SPC_last,
+  0,
+  SPC_last,
   Instructions
 };

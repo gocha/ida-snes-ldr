@@ -12,11 +12,17 @@
 #define _SPC700_HPP
 
 #include "../idaidp.hpp"
+#include <srarea.hpp>
 #include "ins.hpp"
 
-// Is indirect memory reference?
+// If there is an address in 'Op[N].full_target_ea',
+// it means the target address of a branch/jump
+// is already known. That's there to help the 'emu'
+// module propagate flags & status.
+#define full_target_ea  specval
 
-#define indirect        auxpref
+// Is indirect memory reference?
+#define indirect        segpref
 
 #define UAS_SECT        0x0002          // Segments are named .SECTION
 #define UAS_NOSEG       0x0004          // No 'segment' directives
@@ -31,11 +37,16 @@ enum SPC_registers {
   rY,
   rYA,
   rSP,
+  rPSW,
+  rFc,
+
   rCs,  // code segment (virtual)
   rDs,  // data segment (virtual)
 
-  rPSW,
-  rFc,
+  // This will be considered segment registers by IDA,
+  // but we'll actually use them to keep information
+  // about the 'p' flags, determining the direct page address.
+  rFp,
 };
 
 

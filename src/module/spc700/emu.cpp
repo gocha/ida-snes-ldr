@@ -47,14 +47,25 @@ MAKE_IMMD:
         case rDY:       // "dp, Y"
         case riDX:      // "(dp, X)"
         case rDiY:      // "(dp,n), Y"
-          // TODO: backtrack direct page register
-          goto MAKE_IMMD;
+          {
+            sel_t dp = get_segreg(cmd.ea, rFp);
+            if ( dp != BADSEL )
+            {
+              ea = toEA(dataSeg_op(x.n), (dp << 8) | x.addr);
+              goto MAKE_DREF;
+            }
+            else
+            {
+              goto MAKE_IMMD;
+            }
+          }
 
         case rAbsX:     // "abs, X"
         case rAbsY:     // "abs, Y"
         case rAbsXi:    // "(abs,X)"
         case rDbit:     // "abs.n"
         case rDbitnot:  // "/abs.n"
+          ea = toEA(dataSeg_op(x.n), x.addr);
           goto MAKE_DREF;
 
         case rTCall:    // "tcall n"
@@ -68,8 +79,8 @@ MAKE_IMMD:
       break;
 
     case o_mem:
-MAKE_DREF:
       ea = toEA(dataSeg_op(x.n), x.addr);
+MAKE_DREF:
       ua_dodata2(x.offb, ea, x.dtyp);
       if ( !read_access )
         doVar(ea);
@@ -135,6 +146,37 @@ int idaapi emu(void)
 
   if ( flow )
     ua_add_cref(0,cmd.ea+cmd.size,fl_F);
+
+  switch ( cmd.itype )
+  {
+    case SPC_setp:
+      split_srarea(cmd.ea + 1, rFp, 1, SR_auto);
+      break;
+
+    case SPC_clrp:
+      split_srarea(cmd.ea + 1, rFp, 0, SR_auto);
+      break;
+
+    case SPC_jmp:
+    case SPC_call:
+      {
+        if ( cmd.Op1.full_target_ea )
+        {
+          ea_t ftea = cmd.Op1.full_target_ea;
+
+          split_srarea(ftea, rFp,  get_segreg(cmd.ea, rFp),  SR_auto);
+        }
+      }
+      break;
+
+    case SPC_php:
+      // TODO: backtrack stack and update rFp
+      break;
+
+    case SPC_plp:
+      // TODO: backtrack stack and update rFp
+      break;
+  }
 
   return 1;
 }
