@@ -1,15 +1,6 @@
 
 #include "../idaldr.h"
-#include "snes.hpp"
 #include "addr.cpp"
-
-//----------------------------------------------------------------------------
-static bool rom_has_header(linput_t *li)
-{
-  int32 rom_size = qlsize(li);
-  bool has_header = (rom_size % 0x2000) == 0x200;
-  return has_header;
-}
 
 //----------------------------------------------------------------------------
 static void map_io_seg(ea_t start, ea_t end, const char *const name)
@@ -45,13 +36,61 @@ static void map_wram()
 }
 
 //----------------------------------------------------------------------------
-// http://git.redump.net/cgit.cgi/mess/tree/src/mame/machine/snes.c
-static sel_t map_mode_20(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
+static void map_lorom_sram(uint32 ram_size, bool preserve_rom_mirror)
+{
+  // Usually, the lower half of bank (0x8000 bytes) is SRAM, and the upper half is ROM mirror.
+  // However, some cartridges maps the whole of bank (0x10000 bytes) to SRAM.
+  // In that case, the upper half is probably mirrored as same as the lower half.
+
+  // create ram banks 70-7d (and fe-ff)
+  const uint32 bank_size = 0x8000;
+  uint32 ram_chunks = (ram_size + bank_size - 1) / bank_size;
+  for ( uint32 mapped = 0, bank = 0x70; mapped < ram_chunks; bank++, mapped++ )
+  {
+    if (bank == 0x7e)
+      bank = 0xfe;
+
+    segment_t s;
+    s.startEA = (bank << 16);
+    s.endEA   = s.startEA + bank_size - 1;
+    s.type    = SEG_IMEM;
+    s.sel     = allocate_selector(s.startEA >> 4);
+
+    char seg_name[0x10];
+    qsnprintf(seg_name, sizeof(seg_name), ".%02X", bank);
+    if ( !add_segm_ex(&s, seg_name, "BANK_RAM", ADDSEG_NOSREG) )
+      loader_failure("Failed adding .BANK segment\n");
+  }
+}
+
+//----------------------------------------------------------------------------
+static void map_hirom_sram(uint32 ram_size)
+{
+  // create ram banks 20-3f
+  const uint32 bank_size = 0x2000;
+  uint32 ram_chunks = (ram_size + bank_size - 1) / bank_size;
+  for ( uint32 mapped = 0, bank = 0x20; mapped < ram_chunks; bank++, mapped++ )
+  {
+    segment_t s;
+    s.startEA = (bank << 16) + 0x6000;
+    s.endEA   = s.startEA + bank_size - 1;
+    s.type    = SEG_IMEM;
+    s.sel     = allocate_selector(s.startEA >> 4);
+
+    char seg_name[0x10];
+    qsnprintf(seg_name, sizeof(seg_name), ".%02X", bank);
+    if ( !add_segm_ex(&s, seg_name, "BANK_RAM", ADDSEG_NOSREG) )
+      loader_failure("Failed adding .BANK segment\n");
+  }
+}
+
+//----------------------------------------------------------------------------
+static sel_t map_lorom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
   // 32KB chunks count
   uint32 chunks = rom_size / 0x8000;
 
-  // Banks 80 -> ff
+  // map rom to banks 80-ff
   sel_t start_sel = 0;
   for ( uint32 mapped = 0, bank = 0x80; mapped < chunks; bank++, mapped++ )
   {
@@ -72,15 +111,19 @@ static sel_t map_mode_20(linput_t *li, uint32 rom_start_in_file, uint32 rom_size
       start_sel = selector;
   }
 
+  bool preserve_rom_mirror = (rom_size > 0x200000) || (ram_size > 32 * 1024);
+  map_lorom_sram(ram_size, preserve_rom_mirror);
+
   return start_sel;
 }
 
 //----------------------------------------------------------------------------
-static sel_t map_mode_21(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
+static sel_t map_hirom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
   sel_t start_sel = 0;
 
-  // Banks c0 -> ff
+  // map rom to banks c0-ff
+  // FIXME: The code segment cannot access to CPU/PPU registers
   uint32 chunks = rom_size / 0x10000;
   for (uint32 mapped = 0, bank = 0xc0; mapped < chunks; bank++, mapped++ )
   {
@@ -96,76 +139,13 @@ static sel_t map_mode_21(linput_t *li, uint32 rom_start_in_file, uint32 rom_size
     if ( !add_segm(selector, start, end, seg_name, "BANK_ROM") )
       loader_failure("Failed adding .BANK segment\n");
 
-    if ( bank == 0xC0 )
+    if ( bank == 0xc0 )
       start_sel = selector;
   }
 
+  map_hirom_sram(ram_size);
+
   return start_sel;
-}
-
-//----------------------------------------------------------------------------
-static bool read_info_at(rom_info_t *rinfo, linput_t *li, int pos)
-{
-  if ( qlseek(li, pos) != pos )
-    return false;
-
-  if ( qlread(li, rinfo, sizeof(rom_info_t)) != sizeof(rom_info_t) )
-    return false;
-
-  return true;
-}
-
-//----------------------------------------------------------------------------
-static int score_info(const rom_info_t &sinfo, int32 rom_size)
-{
-  uint32 score = 0;
-  if ( (uint16)(sinfo.checksum | sinfo.checksum_c) == 0xffff )
-    score += 10;
-
-  if ( sinfo.rom_type < 7 )
-    score += 4;
-
-  if ( sinfo.rom_size >= 0x8 && sinfo.rom_size <= 0xc )
-    score += 4;
-
-  for ( int i = 0; i < sizeof(sinfo.rom_name) && sinfo.rom_name[i] != '\0'; i++ )
-    if ( isascii(sinfo.rom_name[i]) )
-      score++;
-
-  // Rom size not a multiple of 0x2000? Bad.
-  if ( rom_size % 0x2000 )
-    score /= 2;
-  // Rom size is a multiple of 0x8000? Good.
-  else if ( !(rom_size % 0x8000) )
-    score += 6;
-
-  return score;
-}
-
-//----------------------------------------------------------------------------
-static bool score_rom(linput_t *li, uint32 *out_score_lo, uint32 *out_score_hi)
-{
-  // Snes ROMS must be 'scored', in order to
-  // determine whether they are HI-, or LO-ROM.
-  uint32 header_off = 0;
-  if ( rom_has_header(li) )
-    header_off = 0x200;
-
-  int32 rom_size = qlsize(li) - header_off;
-
-  rom_info_t rom_info;
-  uint32 off = 0x7fc0 + header_off;
-  if ( !read_info_at(&rom_info, li, off) )
-    return false;
-  *out_score_lo = score_info(rom_info, rom_size);
-
-  off = 0xffc0 + header_off;
-  if ( !read_info_at(&rom_info, li, off) )
-    *out_score_hi = 0;  // 32k ROM.
-  else
-    *out_score_hi = score_info(rom_info, rom_size);
-
-  return true;
 }
 
 //----------------------------------------------------------------------------
@@ -177,13 +157,12 @@ int idaapi accept_file(
   if ( n > 0 )
     return 0;
 
-  uint32 lo, hi;
-  if ( !score_rom(li, &lo, &hi) )
-    return 0;
+  SuperFamicomCartridge cartridge(li);
+  unsigned score = cartridge.score_header(li, cartridge.header_offset);
 
-  const int ACCEPTABLE_SCORE_TRESHOLD = 29;
-  if ( lo >= ACCEPTABLE_SCORE_TRESHOLD
-    || hi >= ACCEPTABLE_SCORE_TRESHOLD )
+  const int ACCEPTABLE_SCORE_TRESHOLD = 8;
+  if (score >= ACCEPTABLE_SCORE_TRESHOLD &&
+      cartridge.type != SuperFamicomCartridge::TypeUnknown)
   {
     qstrncpy(fileformatname, "SNES ROM", MAX_FILE_FORMAT_NAME);
     return 1;
@@ -193,7 +172,7 @@ int idaapi accept_file(
 }
 
 //----------------------------------------------------------------------------
-static void add_interrupt_vector(uint16 addr, const char *name)
+static void add_interrupt_vector(uint16 addr, const char *name, bool make_code)
 {
   // Set 'addr' as dword
   ea_t real_ea = xlat(addr);
@@ -214,7 +193,10 @@ static void add_interrupt_vector(uint16 addr, const char *name)
     // interrupt handler functions are ``overlaid''. Thus,
     // we'd break a procedure w/ inserting another
     // procedure right into the previous procedure's code.
-    auto_make_code(vector_addr);
+    if ( make_code )
+    {
+      auto_make_code(vector_addr);
+    }
 
     set_cmt(real_ea, name, false);
   }
@@ -233,61 +215,31 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
   // assumes x86.
   set_processor_type("m65816", SETPROC_ALL|SETPROC_FATAL);
 
-  uint32 lo, hi;
-  if ( !score_rom(li, &lo, &hi) )
-    INTERR(20017);
-
-  uint32 info_offset;
-  bool is_lo_rom = lo > hi;
-  if ( is_lo_rom )
-    info_offset = 0x7fc0;
-  else
-    info_offset = 0xffc0;
-
-  rom_info_t rom_info;
-  if ( !read_info_at(&rom_info, li, info_offset) )
-    loader_failure("Failed loading the info at 0x%x\n", info_offset);
+  SuperFamicomCartridge cartridge(li);
+  //cartridge.print();
 
   // Determine whether ROM has a header
-  int32 rom_start_in_file = 0;
-  int32 rom_size = qlsize(li);
-  if ( rom_size < 0 )
-    loader_failure("Failed retrieving rom size.\n");
-
-  bool has_header = rom_has_header(li);
-  if ( has_header )
-  {
-    // msg("Rom has header\n");
-    rom_size -= 0x200;
-    rom_start_in_file = 0x200;
-  }
-  else
-  {
-    // msg("Rom has no header\n");
-  }
-
-  // Mapping mode
-  rommode_t mode = is_lo_rom ? MODE_20 : MODE_21;
+  int32 start = cartridge.has_copier_header ? 512 : 0;
 
   // Store information for the cpu module
   netnode node;
   node.create("$ m65816");
-  node.hashset("rommode_t", mode);
   node.hashset("device", "snes");
+  cartridge.write_hash(node);
 
-  addr_init(mode);
+  addr_init(cartridge);
 
   sel_t start_cs;
-  switch ( mode )
+  switch ( cartridge.mapper )
   {
-    case MODE_20:
-      start_cs = map_mode_20(li, rom_start_in_file, rom_size);
+    case SuperFamicomCartridge::LoROM:
+      start_cs = map_lorom(li, start, cartridge.rom_size, cartridge.ram_size);
       break;
-    case MODE_21:
-      start_cs = map_mode_21(li, rom_start_in_file, rom_size);
+    case SuperFamicomCartridge::HiROM:
+      start_cs = map_hirom(li, start, cartridge.rom_size, cartridge.ram_size);
       break;
     default:
-      loader_failure("Unsupported rom mode: %d", mode);
+      loader_failure("Unsupported mapper: %s", cartridge.mapper_string());
   }
   inf.start_cs = start_cs;
 
@@ -301,27 +253,27 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
   uint16 start_pc = get_word(reset_vector_loc);
   ea_t start_address = xlat(start_pc);
   inf.startIP  = start_address & 0xffff;
+  add_interrupt_vector(0xfffc, "Emulation-mode RESET", true);
 
   // http://en.wikibooks.org/wiki/Super_NES_Programming/SNES_memory_map
   // ------- Emulation-mode vectors
-  add_interrupt_vector(0xfff4, "Emulation-mode COP");
-  add_interrupt_vector(0xfff8, "Emulation-mode ABORT");
-  add_interrupt_vector(0xfffa, "Emulation-mode NMI");
-  add_interrupt_vector(0xfffc, "Emulation-mode RESET");
-  add_interrupt_vector(0xfffe, "Emulation-mode IRQ");
+  add_interrupt_vector(0xfff4, "Emulation-mode COP", false);
+  add_interrupt_vector(0xfff8, "Emulation-mode ABORT", false);
+  add_interrupt_vector(0xfffa, "Emulation-mode NMI", false);
+  add_interrupt_vector(0xfffe, "Emulation-mode IRQ", false);
 
   // ------- Native-mode vectors --------
-  add_interrupt_vector(0xffe4, "Native-mode COP");
-  add_interrupt_vector(0xffe6, "Native-mode BRK");
-  add_interrupt_vector(0xffe8, "Native-mode ABORT");
-  add_interrupt_vector(0xffea, "Native-mode NMI");
-  add_interrupt_vector(0xffec, "Native-mode RESET");
-  add_interrupt_vector(0xffee, "Native-mode IRQ");
+  add_interrupt_vector(0xffe4, "Native-mode COP", false);
+  add_interrupt_vector(0xffe6, "Native-mode BRK", false);
+  add_interrupt_vector(0xffe8, "Native-mode ABORT", false);
+  add_interrupt_vector(0xffea, "Native-mode NMI", true);
+  add_interrupt_vector(0xffec, "Native-mode RESET", false);
+  add_interrupt_vector(0xffee, "Native-mode IRQ", false);
 
   // Header info
   ea_t header = xlat(0xffc0);
   set_name(header, "snes_header");
-  make_ascii_string(header, sizeof(rom_info.rom_name), ASCSTR_C);
+  make_ascii_string(header, 21, ASCSTR_C);
 }
 
 //----------------------------------------------------------------------------

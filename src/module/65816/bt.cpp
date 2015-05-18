@@ -143,7 +143,7 @@ int32 backtrack_value(ea_t from_ea, uint8 size, btsource_t source)
             case M65816_phd:    // Push D (direct page register)
               return get_segreg(cur_ea, rD);
             case M65816_phk:    // Push K (program bank register)
-              return (cur_ea >> 16) & 0xff;
+              return get_segreg(cur_ea, rPB);
             case M65816_php:    // Push processor status
               return -1;
             case M65816_phx:    // Push X
@@ -156,9 +156,7 @@ int32 backtrack_value(ea_t from_ea, uint8 size, btsource_t source)
         }
         else if ( M65_ITYPE_PULL(itype) )
         {
-          // We won't keep track of additional
-          // displacements in the stack. That'd be for
-          // some v2 or whatever.
+          // TODO: keep track of additional displacements in the stack
           return -1;
         }
       }

@@ -18,6 +18,7 @@ static const char *const RegNames[] =
   "cs",
   "ds",
 
+  "PB", // Program bank
   "B",  // Data bank
   "D",  // Direct page register (used?)
 
@@ -34,6 +35,7 @@ static netnode helper;
 char device[MAXSTR];
 static size_t numports = 0;
 static ioport_t *ports = NULL;
+SuperFamicomCartridge cartridge;
 
 //--------------------------------------------------------------------------
 //lint -esym(528,ioresp_ok) is not referenced
@@ -130,20 +132,53 @@ static int idaapi notify(processor_t::idp_notify msgid, ...)
     case processor_t::newprc:
       break;
     case processor_t::newseg:
-      { // default DS is equal to CS
+      {
         segment_t *sptr = va_arg(va, segment_t *);
-        sptr->defsr[rDs-ph.regFirstSreg] = sptr->sel;
+
+        // default DS is equal to CS
+        sptr->defsr[rDs - ph.regFirstSreg] = sptr->sel;
+
+        // detect SNES bank 0
+        if (xlat(0) == (sptr->startEA & 0xff0000))
+        {
+          // initial bank must be $00 (especially important on HiROM)
+          // Example: Donkey Kong Country 2 - Emulation_mode_RESET
+          sptr->defsr[rB  - ph.regFirstSreg] = 0;
+          sptr->defsr[rPB - ph.regFirstSreg] = 0;
+        }
+        else
+        {
+          // otherwise, set the default bank number from EA
+          uint8 pb = sptr->startEA >> 16;
+          sptr->defsr[rB  - ph.regFirstSreg] = pb;
+          sptr->defsr[rPB - ph.regFirstSreg] = pb;
+        }
       }
       break;
     case processor_t::oldfile:
     case processor_t::newfile:
       {
-        rommode_t mode = (rommode_t)helper.hashval_long("rommode_t");
-        if ( !addr_init(mode) )
+        cartridge.read_hash(helper);
+        //cartridge.print();
+
+        // read rommode_t for backward compatibility
+        nodeidx_t mode = helper.hashval_long("rommode_t");
+        switch ( mode )
         {
-          warning("ROM mode in the database is wrong, falling back to MODE_20");
-          addr_init(MODE_20);
+          case 0x20:
+            cartridge.mapper = SuperFamicomCartridge::LoROM;
+            break;
+
+          case 0x21:
+            cartridge.mapper = SuperFamicomCartridge::HiROM;
+            break;
         }
+
+        if ( !addr_init(cartridge) )
+        {
+          warning("Unsupported mapper: %s", cartridge.mapper_string());
+        }
+
         char buf[MAXSTR];
         const char *device_ptr = buf;
         ssize_t len = helper.hashstr("device", buf, sizeof(buf));
@@ -157,9 +192,23 @@ static int idaapi notify(processor_t::idp_notify msgid, ...)
           set_default_segreg_value(NULL, rFm, 1);
           set_default_segreg_value(NULL, rFx, 1);
           set_default_segreg_value(NULL, rFe, 1);
-          set_default_segreg_value(NULL, rB,  0);
-          set_default_segreg_value(NULL, rDs, 0);
           set_default_segreg_value(NULL, rD,  0);
+
+          // see processor_t::newseg for the following registers
+          //set_default_segreg_value(NULL, rPB, 0);
+          //set_default_segreg_value(NULL, rB,  0);
+          //set_default_segreg_value(NULL, rDs, 0);
+
+          if ( inf.startIP != BADADDR )
+          {
+            ea_t reset_ea = xlat(inf.startIP);
+            split_srarea(reset_ea, rFm,  get_segreg(cmd.ea, rFm),  SR_auto);
+            split_srarea(reset_ea, rFx,  get_segreg(cmd.ea, rFx),  SR_auto);
+            split_srarea(reset_ea, rFe,  get_segreg(cmd.ea, rFe),  SR_auto);
+            split_srarea(reset_ea, rPB,  0,                        SR_auto);
+            split_srarea(reset_ea, rB,   0,                        SR_auto);
+            split_srarea(reset_ea, rD,   get_segreg(cmd.ea, rD),   SR_auto);
+          }
         }
       }
       break;
@@ -180,7 +229,18 @@ static int idaapi notify(processor_t::idp_notify msgid, ...)
         if ( regnum == rB )
         {
 //          sel_t d2 = va_arg(va, sel_t); qnotused(d2);
-          split_srarea(startEA, rDs, value << 12, SR_auto);
+            sel_t sel = find_rom_bank_selector(value);
+            if ( sel != BADSEL )
+              split_srarea(startEA, rDs, sel, SR_auto);
+            else
+              warning("Unable to update data segment register to $%02X", value);
+        }
+        else if ( regnum == rPB )
+        {
+          uint16 offset = startEA & 0xffff;
+          ea_t newEA = xlat((value << 16) + offset);
+          if ( startEA != newEA )
+            warning("Inconsistent program bank number ($%02X:%04X != $%02X:%04X)", startEA >> 16, offset, value, offset);
         }
       }
       break;

@@ -206,8 +206,8 @@ int idaapi emu(void)
           split_srarea(ftea, rFm,  get_segreg(cmd.ea, rFm),  SR_auto);
           split_srarea(ftea, rFx,  get_segreg(cmd.ea, rFx),  SR_auto);
           split_srarea(ftea, rFe,  get_segreg(cmd.ea, rFe),  SR_auto);
+          split_srarea(ftea, rPB,  ftea >> 16,               SR_auto);
           split_srarea(ftea, rB,   get_segreg(cmd.ea, rB),   SR_auto);
-          split_srarea(ftea, rDs,  get_segreg(cmd.ea, rDs),  SR_auto);
           split_srarea(ftea, rD,   get_segreg(cmd.ea, rD),   SR_auto);
         }
       }
@@ -216,8 +216,10 @@ int idaapi emu(void)
     case M65816_plb:
       {
         int32 val = backtrack_value(cmd.ea, 1, BT_STACK);
-        if ( val != -1 )
+        if ( val != -1 ) {
           split_srarea(cmd.ea + cmd.size, rB, val, SR_auto);
+          //split_srarea(cmd.ea + cmd.size, rDs, val, SR_auto);
+        }
       }
       break;
 

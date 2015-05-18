@@ -1,165 +1,169 @@
 
 // This file is included from the loader module and the processor module
 
-//lint -esym(843,g_mode) Variable could be declared as const
-//lint -esym(843,xlator) Variable could be declared as const
+#include "super-famicom.hpp"
 
-enum rommode_t
-{
-  MODE_UNKNOWN = 0,
-  MODE_20 = 20,
-  MODE_21 = 21,
-  MODE_22 = 22,
-  MODE_25 = 25
-};
-
-static rommode_t g_mode = MODE_UNKNOWN;
-
-typedef ea_t (*xlator_t)(ea_t address);
-
-static xlator_t xlator = NULL;
+static SuperFamicomCartridge g_cartridge;
 
 //----------------------------------------------------------------------------
-// http://git.redump.net/cgit.cgi/mess/tree/src/mame/machine/snes.c
-//
-// MODE_20
-//      banks 0x00      0x20          0x40      0x60       0x70     0x7e  0x80   0xc0   0xff
-// address               |             |         |          |        |     |      |      |
-// 0xffff  ------------------------------------------------------------------------------|
-//              ROM      |     ROM /   |   ROM   |  ROM     |  ROM / |     | 0x00 | 0x40 |
-//                       |     DSP     |         |          |  SRAM? |     |  to  |  to  |
-// 0x8000  ----------------------------------------------------------|     | 0x3f | 0x7f |
-//                    Reserv           |         |          |        |  W  |      |      |
-//                                     |         |          |   S    |  R  |  m   |  m   |
-// 0x6000  ----------------------------|         |  DSP /   |   R    |  A  |  i   |  i   |
-//                      I/O            |  Reserv |          |   A    |  M  |  r   |  r   |
-// 0x2000  ----------------------------|         |  Reserv  |   M    |     |  r   |  r   |
-//              Low RAM (from 0x7e)    |         |          |        |     |  o   |  o   |
-//                                     |         |          |        |     |  r   |  r   |
-// 0x0000  -------------------------------------------------------------------------------
-static ea_t xlat_20(ea_t address)
+// rom name=program.rom size=hex(rom_size)
+// ram name=save.ram size=hex(ram_size)
+// map id=rom address=00-7f,80-ff:8000-ffff mask=0x8000
+// map id=ram address=70-7f,f0-ff:[0000-7fff|0000-ffff]
+static ea_t xlat_lorom(ea_t address)
 {
-  ea_t ret = address;
-  uint16 o = address & 0xffff;
-  uint8 k  = (address >> 16) & 0xff;
-  uint8 uk = (k >> 4) & 0xf;
-  switch ( uk )
+  uint16 addr = address & 0xffff;
+  uint8 bank = (address >> 16) & 0xff;
+
+  // WRAM
+  if ( bank >= 0x7e && bank <= 0x7f )
+    return address;
+
+  // SRAM
+  if ( g_cartridge.ram_size != 0 )
   {
-    case 0x0:
-    case 0x1:
-    case 0x2:
-    case 0x3:
-      if ( o < 0x2000 )
-        ret = 0x7E0000 + o;
-      else if ( o < 0x6000 )
-        ret = o;
-      else if ( o >= 0x8000 )
-        ret = ((0x80 + k) << 16) + o;
-      break;
-    case 0x8:
-    case 0x9:
-    case 0xa:
-    case 0xb:
-      if ( o < 0x2000 )
-        ret = 0x7E0000 + o;
-      else if ( o < 0x6000 )
-        ret = o;
-      break;
-    default:
-      break;
+    bool preserve_rom_mirror = (g_cartridge.rom_size > 0x200000) || (g_cartridge.ram_size > 32 * 1024);
+
+    if ( ( bank >= 0x70 && bank <= 0x7d ) || ( bank >= 0xf0 && bank <= 0xff ) )
+    {
+      if ( addr <= 0x7fff || !preserve_rom_mirror )
+      {
+        uint32 ram_mask = g_cartridge.ram_size - 1;
+        uint32 ram_offset = (((bank & 0xf) << 15) + (addr & 0x7fff)) & ram_mask;
+
+        ea_t ea = ((0x70 + (ram_offset >> 15)) << 16) + (ram_offset & 0x7fff);
+        if ( bank >= 0xfe )
+          ea += 0x800000;
+        return ea;
+      }
+    }
   }
-  return ret;
+
+  // mirror 00-7d => 80-fd (excluding SRAM)
+  if ( bank <= 0x7d )
+    return xlat_lorom(((0x80 + bank) << 16) + addr);
+
+  if ( addr <= 0x7fff )
+  {
+    if ( addr <= 0x1fff ) // Low RAM
+      return 0x7e0000 + addr;
+    else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
+      return addr;
+    else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
+      return addr;
+    else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
+      return addr;
+    else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
+      return addr;
+    else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
+      return addr;
+  }
+  else
+  {
+    // ROM
+    return address;
+  }
+
+  return address;
 }
 
 //----------------------------------------------------------------------------
-// MODE_21
-//      banks 0x00      0x10          0x30      0x40   0x7e  0x80      0xc0   0xff
-// address               |             |         |      |     |         |      |
-// 0xffff  --------------------------------------------------------------------|
-//                          mirror               | 0xc0 |     | mirror  |      |
-//                       upper half ROM          |  to  |     | up half |      |
-//                      from 0xc0 to 0xff        | 0xff |     |   ROM   |      |
-// 0x8000  --------------------------------------|      |     |---------|      |
-//              DSP /    |    Reserv   |  SRAM   |      |  W  |         |      |
-//             Reserv    |             |         |  m   |  R  |   0x00  |  R   |
-// 0x6000  --------------------------------------|  i   |  A  |    to   |  O   |
-//                           I/O                 |  r   |  M  |   0x3f  |  M   |
-// 0x2000  --------------------------------------|  r   |     |  mirror |      |
-//                    Low RAM (from 0x7e)        |  o   |     |         |      |
-//                                               |  r   |     |         |      |
-// 0x0000  ---------------------------------------------------------------------
-static ea_t xlat_21(ea_t address)
+// rom name=program.rom size=hex(rom_size)
+// ram name=save.ram size=hex(ram_size)
+// map id=rom address=00-3f,80-bf:8000-ffff
+// map id=rom address=40-7f,c0-ff:0000-ffff
+// map id=ram address=10-3f,90-bf:6000-7fff mask=0xe000
+static ea_t xlat_hirom(ea_t address)
 {
-  ea_t ret = address;
-  uint16 o = address & 0xffff;
-  uint8 k  = (address >> 16) & 0xff;
-  uint8 uk = (k >> 4) & 0xf;
-  switch ( uk )
+  uint16 addr = address & 0xffff;
+  uint8 bank = (address >> 16) & 0xff;
+
+  // WRAM
+  if ( bank >= 0x7e && bank <= 0x7f )
+    return address;
+
+  // SRAM
+  if ( g_cartridge.ram_size != 0 )
   {
-    case 0x0:
-    case 0x1:
-    case 0x2:
-    case 0x3:
-      if ( o < 0x2000 )
-        ret = 0x7E0000 + o;
-      else if ( o < 0x6000 )
-        ret = o;
-      else if ( o >= 0x8000 )
-        ret = ((0xC0 + k) << 16) + o;
-      break;
-    case 0x4:
-    case 0x5:
-    case 0x6:
-    case 0x7:
-      if ( k < 0x7e )
-        ret = ((0xC0 + (k - 0x40)) << 16) + o;
-      break;
-    case 0x8:
-    case 0x9:
-    case 0xa:
-    case 0xb:
-      if ( o < 0x2000 )
-        ret = 0x7E0000 + o;
-      else if ( o < 0x6000 )
-        ret = o;
-      else
-        ret = ((0xC0 + (k - 0x80)) << 16) + o;
-      break;
+    if ( ( bank >= 0x10 && bank <= 0x3f ) || ( bank >= 0x90 && bank <= 0xbf ) )
+    {
+      if ( addr >= 0x6000 && addr <= 0x7fff )
+      {
+        // Typically, HiROM SRAM starts from $20:0000, but there are exceptions.
+        // Example: Donkey Kong Country 2 (reads $B0:6000 for 2 kilobytes SRAM)
+        uint32 ram_mask = g_cartridge.ram_size - 1;
+        uint32 ram_offset = (((bank & 0x1f) << 13) + (addr - 0x6000)) & ram_mask;
+        return ((0x20 + (ram_offset >> 13)) << 16) + (0x6000 + (ram_offset & 0x1fff));
+      }
+    }
   }
-  return ret;
+
+  // mirror 00-7d => 80-fd (excluding SRAM)
+  if ( bank <= 0x7d )
+    return xlat_hirom(((0x80 + bank) << 16) + addr);
+
+  if ( bank <= 0xbf && addr <= 0x7fff )
+  {
+    if ( addr <= 0x1fff ) // Low RAM
+      return 0x7e0000 + addr;
+    else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
+      return addr;
+    else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
+      return addr;
+    else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
+      return addr;
+    else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
+      return addr;
+    else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
+      return addr;
+  }
+  else
+  {
+    // ROM
+    return ((0xc0 + (bank & 0x3f)) << 16) + addr;
+  }
+
+  return address;
 }
 
 //----------------------------------------------------------------------------
-static bool addr_init(rommode_t new_mode)
+static bool addr_init(const SuperFamicomCartridge & cartridge)
 {
-  if ( g_mode != MODE_UNKNOWN )
-    return false;
+  g_cartridge = cartridge;
 
-  g_mode = new_mode;
-  switch ( g_mode )
+  switch ( g_cartridge.mapper )
   {
-    case MODE_20:
-      xlator = xlat_20;
-      break;
-    case MODE_21:
-      xlator = xlat_21;
-      break;
-    case MODE_22:
-      xlator = NULL;
-      break;
-    case MODE_25:
-      xlator = NULL;
-      break;
+    case SuperFamicomCartridge::LoROM:
+    case SuperFamicomCartridge::HiROM:
+      return true;
     default:
       return false;
   }
-  return true;
 }
 
 //----------------------------------------------------------------------------
 ea_t xlat(ea_t address)
 {
-  QASSERT(20016, xlator != NULL);
-  return xlator(address);
+  switch ( g_cartridge.mapper )
+  {
+    case SuperFamicomCartridge::LoROM:
+      return xlat_lorom(address);
+    case SuperFamicomCartridge::HiROM:
+      return xlat_hirom(address);
+    default:
+      return address;
+  }
 }
 
+//----------------------------------------------------------------------------
+sel_t find_rom_bank_selector( uint8 bank )
+{
+  switch ( g_cartridge.mapper )
+  {
+    case SuperFamicomCartridge::LoROM:
+    case SuperFamicomCartridge::HiROM:
+      return find_selector((bank << 16) | 0x8000);
+    default:
+      return BADSEL;
+  }
+}

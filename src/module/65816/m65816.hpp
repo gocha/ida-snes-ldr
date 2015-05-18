@@ -38,6 +38,9 @@ enum M65816_registers {
   rCs,  // code segment
   rDs,  // data segment
 
+  // program bank register
+  rPB,
+
   // This will hold the value of B, the
   // data bank register. We won't make use of Ds
   // directly, as it is typically used, in computation,
@@ -199,6 +202,9 @@ const struct opcode_info_t &get_opcode_info(uint8 opcode);
      || ((op) == M65816_plp) \
      || ((op) == M65816_plx) \
      || ((op) == M65816_ply))
+
+struct SuperFamicomCartridge;
+extern SuperFamicomCartridge cartridge;
 
 //------------------------------------------------------------------------
 void    idaapi header(void);
