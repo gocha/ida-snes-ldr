@@ -20,6 +20,7 @@ static void map_hwregs()
 {
   map_io_seg(0x2100, 0x2144, "gpuapu");
   map_io_seg(0x2180, 0x2184, "wramrw");
+  map_io_seg(0x4010, 0x4018, "legacy"); // $4016-4017
   map_io_seg(0x4200, 0x4220, "misc");
   map_io_seg(0x4300, 0x4380, "dma");
 }
