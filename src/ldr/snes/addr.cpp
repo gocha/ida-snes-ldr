@@ -172,10 +172,7 @@ static ea_t xlat_sa1rom(ea_t address)
   if ( bank >= 0xc0 )
   {
     // ROM (HiROM layout)
-    if ( bank >= 0xe0 )
-      return address;
-    else
-      return ((0x00 + ((bank - 0xc0) << 1)) << 16) + 0x8000 + (addr & 0x7fff); // redirect to LoROM
+    return address;
   }
   else if ( bank <= 0x3f )
   {

@@ -207,12 +207,11 @@ static sel_t map_hirom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
 //----------------------------------------------------------------------------
 static sel_t map_sa1rom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
 {
-  // map rom to banks 00-3f
+  // map rom to banks 00-3f (LoROM layout)
   sel_t start_sel = map_lorom_offset(li, rom_start_in_file, qmin(rom_size, 0x200000), 0x00, 0);
 
-  // map > 2MB rom to banks e0-ff
-  if ( rom_size > 0x200000 )
-    map_hirom_offset(li, rom_start_in_file, rom_size - 0x200000, 0xe0, 0x200000);
+  // map rom to banks c0-ff (HiROM layout)
+  map_hirom_offset(li, rom_start_in_file, rom_size, 0xc0, 0);
 
   return start_sel;
 }
