@@ -127,6 +127,92 @@ static ea_t xlat_hirom(ea_t address)
 }
 
 //----------------------------------------------------------------------------
+// sa1
+//   rom name=program.rom size=hex(rom_size)
+//   ram id=bitmap name=save.ram size=hex(ram_size)
+//   ram id=internal size=0x800
+//   map id=io address=00-3f,80-bf:2200-23ff
+//   map id=rom address=00-3f,80-bf:8000-ffff
+//   map id=rom address=c0-ff:0000-ffff
+//   map id=bwram address=00-3f,80-bf:6000-7fff
+//   map id=bwram address=40-4f:0000-ffff
+//   map id=iram address=00-3f,80-bf:3000-37ff
+static ea_t xlat_sa1rom(ea_t address)
+{
+  uint16 addr = address & 0xffff;
+  uint8 bank = (address >> 16) & 0xff;
+
+  // mirror 80-bf => 00-3f
+  if ( bank >= 0x80 && bank <= 0xbf )
+    return xlat_hirom(((bank - 0x80) << 16) + addr);
+
+  // WRAM
+  if ( bank >= 0x7e && bank <= 0x7f )
+    return address;
+
+  // SA1 BWRAM (SRAM)
+  if ( g_cartridge.ram_size != 0 )
+  {
+    if ( bank <= 0x3f )
+    {
+      if ( addr >= 0x6000 && addr <= 0x7fff )
+      {
+        // 8 kilobytes RAM (shared with 40:0000-1fff)
+        uint32 ram_offset = (addr & 0x7fff) - 0x6000;
+        return (0x40 << 16) + ram_offset;
+      }
+    }
+    else if ( bank >= 0x40 && bank <= 0x4f )
+    {
+      // 128 kB address space, redirects to banks 40-41
+      return ((bank & ~0xe) << 16) + addr;
+    }
+  }
+
+  if ( bank >= 0xc0 )
+  {
+    // ROM (HiROM layout)
+    if ( bank >= 0xe0 )
+      return address;
+    else
+      return ((0x00 + ((bank - 0xc0) << 1)) << 16) + 0x8000 + (addr & 0x7fff); // redirect to LoROM
+  }
+  else if ( bank <= 0x3f )
+  {
+    if ( addr <= 0x7fff )
+    {
+      if ( addr <= 0x1fff ) // Low RAM
+        return 0x7e0000 + addr;
+      else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
+        return addr;
+      else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
+        return addr;
+      else if ( addr >= 0x2200 && addr <= 0x23ff ) // SA1 registers
+        return addr;
+      else if ( addr >= 0x3000 && addr <= 0x37ff ) // SA1 IWRAM
+        return addr;
+    }
+    else
+    {
+      // ROM (LoROM layout)
+      return address;
+    }
+  }
+
+  // TODO: SA1 Missing Memory Map
+  // 00-3f|80-bf:0000-07ff IWRAM (SA1 side)
+  // 60-6f:0000-ffff       BWRAM Bitmap (SA1 side)
+
+  return address;
+}
+
+//----------------------------------------------------------------------------
 static bool addr_init(const SuperFamicomCartridge & cartridge)
 {
   g_cartridge = cartridge;
@@ -135,6 +221,7 @@ static bool addr_init(const SuperFamicomCartridge & cartridge)
   {
     case SuperFamicomCartridge::LoROM:
     case SuperFamicomCartridge::HiROM:
+    case SuperFamicomCartridge::SA1ROM:
       return true;
     default:
       return false;
@@ -150,6 +237,8 @@ ea_t xlat(ea_t address)
       return xlat_lorom(address);
     case SuperFamicomCartridge::HiROM:
       return xlat_hirom(address);
+    case SuperFamicomCartridge::SA1ROM:
+      return xlat_sa1rom(address);
     default:
       return address;
   }
@@ -162,6 +251,7 @@ sel_t find_rom_bank_selector( uint8 bank )
   {
     case SuperFamicomCartridge::LoROM:
     case SuperFamicomCartridge::HiROM:
+    case SuperFamicomCartridge::SA1ROM:
       return find_selector((bank << 16) | 0x8000);
     default:
       return BADSEL;

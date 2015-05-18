@@ -10,7 +10,8 @@ static void map_io_seg(ea_t start, ea_t end, const char *const name)
   s.endEA   = end;
   s.type    = SEG_IMEM;
   s.sel     = allocate_selector(start >> 4);
-  add_segm_ex(&s, name, NULL, ADDSEG_NOSREG);
+  if ( !add_segm_ex(&s, name, NULL, ADDSEG_NOSREG) )
+    loader_failure("Failed adding %s segment\n", name);
 }
 
 
@@ -32,7 +33,11 @@ static void map_wram()
   s.endEA   = 0x800000;
   s.type    = SEG_IMEM;
   s.sel     = allocate_selector(s.startEA >> 4);
-  add_segm_ex(&s, "wram", NULL, ADDSEG_NOSREG);
+
+  char seg_name[0x10];
+  qsnprintf(seg_name, sizeof(seg_name), "wram");
+  if ( !add_segm_ex(&s, seg_name, NULL, ADDSEG_NOSREG) )
+    loader_failure("Failed adding %s segment\n", seg_name);
 }
 
 //----------------------------------------------------------------------------
@@ -59,7 +64,7 @@ static void map_lorom_sram(uint32 ram_size, bool preserve_rom_mirror)
     char seg_name[0x10];
     qsnprintf(seg_name, sizeof(seg_name), ".%02X", bank);
     if ( !add_segm_ex(&s, seg_name, "BANK_RAM", ADDSEG_NOSREG) )
-      loader_failure("Failed adding .BANK segment\n");
+      loader_failure("Failed adding %s segment\n", seg_name);
   }
 }
 
@@ -80,23 +85,65 @@ static void map_hirom_sram(uint32 ram_size)
     char seg_name[0x10];
     qsnprintf(seg_name, sizeof(seg_name), ".%02X", bank);
     if ( !add_segm_ex(&s, seg_name, "BANK_RAM", ADDSEG_NOSREG) )
-      loader_failure("Failed adding .BANK segment\n");
+      loader_failure("Failed adding %s segment\n", seg_name);
   }
 }
 
 //----------------------------------------------------------------------------
-static sel_t map_lorom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
+static void map_sa1rom_bwram(uint32 ram_size)
+{
+  // create ram banks 40-41
+  const uint32 bank_size = 0x10000;
+  uint32 ram_chunks = (ram_size + bank_size - 1) / bank_size;
+  for ( uint32 mapped = 0, bank = 0x40; mapped < ram_chunks; bank++, mapped++ )
+  {
+    segment_t s;
+    s.startEA = bank << 16;
+    s.endEA   = s.startEA + bank_size - 1;
+    s.type    = SEG_IMEM;
+    s.sel     = allocate_selector(s.startEA >> 4);
+
+    char seg_name[0x10];
+    qsnprintf(seg_name, sizeof(seg_name), ".%02X", bank);
+    if ( !add_segm_ex(&s, seg_name, "BANK_RAM", ADDSEG_NOSREG) )
+      loader_failure("Failed adding %s segment\n", seg_name);
+  }
+}
+
+//----------------------------------------------------------------------------
+static void map_sa1rom_iram()
+{
+  segment_t s;
+  s.startEA = 0x3000;
+  s.endEA   = 0x37ff;
+  s.type    = SEG_IMEM;
+  s.sel     = allocate_selector(s.startEA >> 4);
+
+  char seg_name[0x10];
+  qsnprintf(seg_name, sizeof(seg_name), "iram");
+  if ( !add_segm_ex(&s, seg_name, NULL, ADDSEG_NOSREG) )
+    loader_failure("Failed adding %s segment\n", seg_name);
+}
+
+//----------------------------------------------------------------------------
+static void map_sa1rom_hwregs()
+{
+  map_io_seg(0x2200, 0x23ff, "sa1");
+}
+
+//----------------------------------------------------------------------------
+static sel_t map_lorom_offset(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint8 start_bank, uint32 offset)
 {
   // 32KB chunks count
   uint32 chunks = rom_size / 0x8000;
 
-  // map rom to banks 80-ff
+  // map rom to banks
   sel_t start_sel = 0;
-  for ( uint32 mapped = 0, bank = 0x80; mapped < chunks; bank++, mapped++ )
+  for ( uint32 mapped = 0, bank = start_bank; mapped < chunks; bank++, mapped++ )
   {
     ea_t start         = (bank << 16) + 0x8000;
     ea_t end           = start + 0x8000;
-    uint32 off_in_file = rom_start_in_file + (mapped << 15);
+    uint32 off_in_file = rom_start_in_file + offset + (mapped << 15);
 
     if ( !file2base(li, off_in_file, start, end, FILEREG_PATCHABLE) )
       loader_failure("Failed mapping 0x%x -> [0x%a, 0x%a)\n", off_in_file, start, end);
@@ -111,25 +158,28 @@ static sel_t map_lorom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, 
       start_sel = selector;
   }
 
-  bool preserve_rom_mirror = (rom_size > 0x200000) || (ram_size > 32 * 1024);
-  map_lorom_sram(ram_size, preserve_rom_mirror);
-
   return start_sel;
 }
 
 //----------------------------------------------------------------------------
-static sel_t map_hirom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
+static sel_t map_lorom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
+{
+  // map rom to banks 80-ff
+  return map_lorom_offset(li, rom_start_in_file, rom_size, 0x80, 0);
+}
+
+//----------------------------------------------------------------------------
+static sel_t map_hirom_offset(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint8 start_bank, uint32 offset)
 {
   sel_t start_sel = 0;
 
-  // map rom to banks c0-ff
-  // FIXME: The code segment cannot access to CPU/PPU registers
+  // map rom to banks
   uint32 chunks = rom_size / 0x10000;
-  for (uint32 mapped = 0, bank = 0xc0; mapped < chunks; bank++, mapped++ )
+  for (uint32 mapped = 0, bank = start_bank; mapped < chunks; bank++, mapped++ )
   {
     ea_t start         = bank << 16;
     ea_t end           = start + 0x10000;
-    uint32 off_in_file = rom_start_in_file + (mapped << 16);
+    uint32 off_in_file = rom_start_in_file + offset + (mapped << 16);
     if ( !file2base(li, off_in_file, start, end, FILEREG_PATCHABLE) )
       loader_failure("Failed mapping 0x%x -> [0x%a, 0x%a)\n", off_in_file, start, end);
 
@@ -143,7 +193,58 @@ static sel_t map_hirom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, 
       start_sel = selector;
   }
 
+  return start_sel;
+}
+
+//----------------------------------------------------------------------------
+static sel_t map_hirom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
+{
+  // map rom to banks c0-ff
+  return map_hirom_offset(li, rom_start_in_file, rom_size, 0xc0, 0);
+}
+
+//----------------------------------------------------------------------------
+static sel_t map_sa1rom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
+{
+  // map rom to banks 00-3f
+  sel_t start_sel = map_lorom_offset(li, rom_start_in_file, qmin(rom_size, 0x200000), 0x00, 0);
+
+  // map > 2MB rom to banks e0-ff
+  if ( rom_size > 0x200000 )
+    map_hirom_offset(li, rom_start_in_file, rom_size - 0x200000, 0xe0, 0x200000);
+
+  return start_sel;
+}
+
+//----------------------------------------------------------------------------
+static sel_t map_lorom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
+{
+  sel_t start_sel = map_lorom(li, rom_start_in_file, rom_size);
+
+  bool preserve_rom_mirror = (rom_size > 0x200000) || (ram_size > 32 * 1024);
+  map_lorom_sram(ram_size, preserve_rom_mirror);
+
+  return start_sel;
+}
+
+//----------------------------------------------------------------------------
+static sel_t map_hirom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
+{
+  sel_t start_sel = map_hirom(li, rom_start_in_file, rom_size);
+
   map_hirom_sram(ram_size);
+
+  return start_sel;
+}
+
+//----------------------------------------------------------------------------
+static sel_t map_sa1rom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
+{
+  sel_t start_sel = map_sa1rom(li, rom_start_in_file, rom_size);
+
+  map_sa1rom_bwram(ram_size);
+  map_sa1rom_iram();
+  map_sa1rom_hwregs();
 
   return start_sel;
 }
@@ -233,10 +334,13 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
   switch ( cartridge.mapper )
   {
     case SuperFamicomCartridge::LoROM:
-      start_cs = map_lorom(li, start, cartridge.rom_size, cartridge.ram_size);
+      start_cs = map_lorom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
       break;
     case SuperFamicomCartridge::HiROM:
-      start_cs = map_hirom(li, start, cartridge.rom_size, cartridge.ram_size);
+      start_cs = map_hirom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+      break;
+    case SuperFamicomCartridge::SA1ROM:
+      start_cs = map_sa1rom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
       break;
     default:
       loader_failure("Unsupported mapper: %s", cartridge.mapper_string());
