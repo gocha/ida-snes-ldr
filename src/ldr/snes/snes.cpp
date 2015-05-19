@@ -179,17 +179,19 @@ static void map_sa1rom_hwregs()
 static sel_t map_lorom_offset(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint8 start_bank, uint32 offset)
 {
   // 32KB chunks count
-  uint32 chunks = rom_size / 0x8000;
+  uint32 chunks = (rom_size + 0x8000 - 1) / 0x8000;
 
   // map rom to banks
   sel_t start_sel = 0;
   for ( uint32 mapped = 0, bank = start_bank; mapped < chunks; bank++, mapped++ )
   {
+    uint32 map_size = qmin(0x8000, rom_size - (0x8000 * mapped));
+
     ea_t start         = (bank << 16) + 0x8000;
     ea_t end           = start + 0x8000;
     uint32 off_in_file = rom_start_in_file + offset + (mapped << 15);
 
-    if ( !file2base(li, off_in_file, start, end, FILEREG_PATCHABLE) )
+    if ( !file2base(li, off_in_file, start, start + map_size, FILEREG_PATCHABLE) )
       loader_failure("Failed mapping 0x%x -> [0x%a, 0x%a)\n", off_in_file, start, end);
 
     char seg_name[0x10];
@@ -218,13 +220,15 @@ static sel_t map_hirom_offset(linput_t *li, uint32 rom_start_in_file, uint32 rom
   sel_t start_sel = 0;
 
   // map rom to banks
-  uint32 chunks = rom_size / 0x10000;
+  uint32 chunks = (rom_size + 0x10000 - 1) / 0x10000;
   for (uint32 mapped = 0, bank = start_bank; mapped < chunks; bank++, mapped++ )
   {
+    uint32 map_size = qmin(0x10000, rom_size - (0x10000 * mapped));
+
     ea_t start         = bank << 16;
     ea_t end           = start + 0x10000;
     uint32 off_in_file = rom_start_in_file + offset + (mapped << 16);
-    if ( !file2base(li, off_in_file, start, end, FILEREG_PATCHABLE) )
+    if ( !file2base(li, off_in_file, start, start + map_size, FILEREG_PATCHABLE) )
       loader_failure("Failed mapping 0x%x -> [0x%a, 0x%a)\n", off_in_file, start, end);
 
     char seg_name[0x10];
