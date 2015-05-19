@@ -43,25 +43,28 @@ static ea_t xlat_lorom(ea_t address)
   if ( bank <= 0x7d )
     return xlat_lorom(((0x80 + bank) << 16) + addr);
 
-  if ( addr <= 0x7fff )
+  if ( bank <= 0xbf )
   {
-    if ( addr <= 0x1fff ) // Low RAM
-      return 0x7e0000 + addr;
-    else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
-      return addr;
-    else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
-      return addr;
-    else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
-      return addr;
-    else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
-      return addr;
-    else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
-      return addr;
-  }
-  else
-  {
-    // ROM
-    return address;
+    if ( addr <= 0x7fff )
+    {
+      if ( addr <= 0x1fff ) // Low RAM
+        return 0x7e0000 + addr;
+      else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
+        return addr;
+      else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
+        return addr;
+    }
+    else
+    {
+      // ROM
+      return address;
+    }
   }
 
   return address;
@@ -296,6 +299,7 @@ static bool addr_init(const SuperFamicomCartridge & cartridge)
   {
     case SuperFamicomCartridge::LoROM:
     case SuperFamicomCartridge::HiROM:
+    case SuperFamicomCartridge::ExLoROM:
     case SuperFamicomCartridge::SuperFXROM:
     case SuperFamicomCartridge::SA1ROM:
       return true;
@@ -313,6 +317,9 @@ ea_t xlat(ea_t address)
       return xlat_lorom(address);
     case SuperFamicomCartridge::HiROM:
       return xlat_hirom(address);
+    case SuperFamicomCartridge::ExLoROM:
+      // TODO: Real ExLoROM address map
+      return xlat_lorom(address);
     case SuperFamicomCartridge::SuperFXROM:
       return xlat_superfxrom(address);
     case SuperFamicomCartridge::SA1ROM:

@@ -278,7 +278,7 @@ static sel_t map_sa1rom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
 //----------------------------------------------------------------------------
 static sel_t map_lorom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
-  sel_t start_sel = map_lorom(li, rom_start_in_file, rom_size);
+  sel_t start_sel = map_lorom(li, rom_start_in_file, qmin(rom_size, 0x400000));
 
   bool preserve_rom_mirror = (rom_size > 0x200000) || (ram_size > 32 * 1024);
   map_lorom_sram(ram_size, preserve_rom_mirror);
@@ -289,7 +289,7 @@ static sel_t map_lorom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 
 //----------------------------------------------------------------------------
 static sel_t map_hirom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
-  sel_t start_sel = map_hirom(li, rom_start_in_file, rom_size);
+  sel_t start_sel = map_hirom(li, rom_start_in_file, qmin(rom_size, 0x400000));
 
   map_hirom_sram(ram_size);
 
@@ -405,6 +405,10 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
   switch ( cartridge.mapper )
   {
     case SuperFamicomCartridge::LoROM:
+      start_cs = map_lorom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+      break;
+    case SuperFamicomCartridge::ExLoROM:
+      warning("ExLoROM is not supported. It will be loaded as LoROM.");
       start_cs = map_lorom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
       break;
     case SuperFamicomCartridge::HiROM:
