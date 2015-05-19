@@ -102,25 +102,103 @@ static ea_t xlat_hirom(ea_t address)
   if ( bank <= 0x7d )
     return xlat_hirom(((0x80 + bank) << 16) + addr);
 
-  if ( bank <= 0xbf && addr <= 0x7fff )
+  if ( bank >= 0xc0 )
   {
-    if ( addr <= 0x1fff ) // Low RAM
-      return 0x7e0000 + addr;
-    else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
-      return addr;
-    else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
-      return addr;
-    else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
-      return addr;
-    else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
-      return addr;
-    else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
-      return addr;
+    // ROM (HiROM layout)
+    return address;
   }
   else
   {
-    // ROM
-    return ((0xc0 + (bank & 0x3f)) << 16) + addr;
+    if ( addr <= 0x7fff )
+    {
+      if ( addr <= 0x1fff ) // Low RAM
+        return 0x7e0000 + addr;
+      else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
+        return addr;
+      else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
+        return addr;
+    }
+    else
+    {
+      // ROM (LoROM-like layout)
+      return ((0xc0 + (bank & 0x3f)) << 16) + addr;
+    }
+  }
+
+  return address;
+}
+
+//----------------------------------------------------------------------------
+// superfx revision=4
+//   rom name=program.rom size=hex(rom_size)
+//   ram name=save.ram size=hex(ram_size)
+//   map id=io address=00-3f,80-bf:3000-34ff
+//   map id=rom address=00-3f,80-bf:8000-ffff mask=0x8000
+//   map id=rom address=40-5f,c0-df:0000-ffff
+//   map id=ram address=00-3f,80-bf:6000-7fff size=0x2000
+//   map id=ram address=70-71,f0-f1:0000-ffff
+static ea_t xlat_superfxrom(ea_t address)
+{
+  uint16 addr = address & 0xffff;
+  uint8 bank = (address >> 16) & 0xff;
+
+  // WRAM
+  if ( bank >= 0x7e && bank <= 0x7f )
+    return address;
+
+  // SuperFX RAM
+  if ( g_cartridge.ram_size != 0 )
+  {
+    if ( ( bank >= 0x00 && bank <= 0x3f ) || ( bank >= 0x80 && bank <= 0xbf ) )
+    {
+      if ( addr >= 0x6000 && addr <= 0x7fff )
+      {
+        // 2kB Game Work RAM
+        return (0x00 << 16) + addr;
+      }
+    }
+    else if ( ( bank >= 0x70 && bank <= 0x7f ) || ( bank >= 0xf0 && bank <= 0xf1 ) )
+    {
+      // 128kB SRAM address space
+      return ( ( bank & ~0x80 ) << 16 ) + addr;
+    }
+  }
+
+  if ( ( bank >= 0x40 && bank <= 0x5f ) || ( bank >= 0xc0 && bank <= 0xdf ) )
+  {
+    // ROM (HiROM layout)
+    return address;
+  }
+  else if ( ( bank >= 0x00 && bank <= 0x3f ) || ( bank >= 0x80 && bank <= 0xbf ) )
+  {
+    if ( addr <= 0x7fff )
+    {
+      if ( addr <= 0x1fff ) // Low RAM
+        return 0x7e0000 + addr;
+      else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
+        return addr;
+      else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
+        return addr;
+      else if ( addr >= 0x3000 && addr <= 0x34ff ) // SuperFX registers
+        return addr;
+    }
+    else
+    {
+      // ROM (LoROM layout)
+      return address;
+    }
   }
 
   return address;
@@ -218,6 +296,7 @@ static bool addr_init(const SuperFamicomCartridge & cartridge)
   {
     case SuperFamicomCartridge::LoROM:
     case SuperFamicomCartridge::HiROM:
+    case SuperFamicomCartridge::SuperFXROM:
     case SuperFamicomCartridge::SA1ROM:
       return true;
     default:
@@ -234,6 +313,8 @@ ea_t xlat(ea_t address)
       return xlat_lorom(address);
     case SuperFamicomCartridge::HiROM:
       return xlat_hirom(address);
+    case SuperFamicomCartridge::SuperFXROM:
+      return xlat_superfxrom(address);
     case SuperFamicomCartridge::SA1ROM:
       return xlat_sa1rom(address);
     default:
