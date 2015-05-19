@@ -20,7 +20,7 @@ static void map_hwregs()
 {
   map_io_seg(0x2100, 0x2144, "gpuapu");
   map_io_seg(0x2180, 0x2184, "wramrw");
-  map_io_seg(0x4010, 0x4018, "legacy"); // $4016-4017
+  map_io_seg(0x4016, 0x4018, "joypad");
   map_io_seg(0x4200, 0x4220, "misc");
   map_io_seg(0x4300, 0x4380, "dma");
 }
@@ -58,7 +58,7 @@ static void map_lorom_sram(uint32 ram_size, bool preserve_rom_mirror)
 
     segment_t s;
     s.startEA = (bank << 16);
-    s.endEA   = s.startEA + bank_size - 1;
+    s.endEA   = s.startEA + bank_size;
     s.type    = SEG_IMEM;
     s.sel     = allocate_selector(s.startEA >> 4);
 
@@ -79,7 +79,7 @@ static void map_hirom_sram(uint32 ram_size)
   {
     segment_t s;
     s.startEA = (bank << 16) + 0x6000;
-    s.endEA   = s.startEA + bank_size - 1;
+    s.endEA   = s.startEA + bank_size;
     s.type    = SEG_IMEM;
     s.sel     = allocate_selector(s.startEA >> 4);
 
@@ -100,7 +100,7 @@ static void map_sa1rom_bwram(uint32 ram_size)
   {
     segment_t s;
     s.startEA = bank << 16;
-    s.endEA   = s.startEA + bank_size - 1;
+    s.endEA   = s.startEA + bank_size;
     s.type    = SEG_IMEM;
     s.sel     = allocate_selector(s.startEA >> 4);
 

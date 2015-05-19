@@ -240,17 +240,3 @@ ea_t xlat(ea_t address)
       return address;
   }
 }
-
-//----------------------------------------------------------------------------
-sel_t find_rom_bank_selector( uint8 bank )
-{
-  switch ( g_cartridge.mapper )
-  {
-    case SuperFamicomCartridge::LoROM:
-    case SuperFamicomCartridge::HiROM:
-    case SuperFamicomCartridge::SA1ROM:
-      return find_selector((bank << 16) | 0x8000);
-    default:
-      return BADSEL;
-  }
-}

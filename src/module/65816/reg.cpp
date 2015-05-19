@@ -228,12 +228,8 @@ static int idaapi notify(processor_t::idp_notify msgid, ...)
         sel_t value  = va_arg(va, sel_t);
         if ( regnum == rB )
         {
-//          sel_t d2 = va_arg(va, sel_t); qnotused(d2);
-            sel_t sel = find_rom_bank_selector(value);
-            if ( sel != BADSEL )
-              split_srarea(startEA, rDs, sel, SR_auto);
-            else
-              warning("Unable to update data segment register to $%02X", value);
+//        sel_t d2 = va_arg(va, sel_t); qnotused(d2);
+          split_srarea(startEA, rDs, value << 12, SR_auto);
         }
         else if ( regnum == rPB )
         {
