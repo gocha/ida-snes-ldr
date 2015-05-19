@@ -252,6 +252,21 @@ static sel_t map_hirom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
 }
 
 //----------------------------------------------------------------------------
+static sel_t map_exhirom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
+{
+  if ( rom_size <= 0x400000 )
+    return BADSEL;
+
+  // map rom to banks 40-7f
+  sel_t start_sel = map_hirom_offset(li, rom_start_in_file, rom_size - 0x400000, 0x40, 0x400000);
+
+  // map rom to banks c0-ff
+  map_hirom_offset(li, rom_start_in_file, qmin(rom_size, 0x400000), 0xc0, 0);
+
+  return start_sel;
+}
+
+//----------------------------------------------------------------------------
 static sel_t map_superfxrom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
 {
   // map rom to banks 00-3f (LoROM layout)
@@ -290,6 +305,16 @@ static sel_t map_lorom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 
 static sel_t map_hirom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
   sel_t start_sel = map_hirom(li, rom_start_in_file, qmin(rom_size, 0x400000));
+
+  map_hirom_sram(ram_size);
+
+  return start_sel;
+}
+
+//----------------------------------------------------------------------------
+static sel_t map_exhirom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
+{
+  sel_t start_sel = map_exhirom(li, rom_start_in_file, rom_size);
 
   map_hirom_sram(ram_size);
 
@@ -407,12 +432,15 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
     case SuperFamicomCartridge::LoROM:
       start_cs = map_lorom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
       break;
+    case SuperFamicomCartridge::HiROM:
+      start_cs = map_hirom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+      break;
     case SuperFamicomCartridge::ExLoROM:
       warning("ExLoROM is not supported. It will be loaded as LoROM.");
       start_cs = map_lorom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
       break;
-    case SuperFamicomCartridge::HiROM:
-      start_cs = map_hirom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+    case SuperFamicomCartridge::ExHiROM:
+      start_cs = map_exhirom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
       break;
     case SuperFamicomCartridge::SuperFXROM:
       start_cs = map_superfxrom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
@@ -434,7 +462,7 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
   ea_t reset_vector_loc = xlat(0xfffc);
   uint16 start_pc = get_word(reset_vector_loc);
   ea_t start_address = xlat(start_pc);
-  inf.startIP  = start_address & 0xffff;
+  inf.startIP  = start_address;
   add_interrupt_vector(0xfffc, "Emulation-mode RESET", true);
 
   // http://en.wikibooks.org/wiki/Super_NES_Programming/SNES_memory_map

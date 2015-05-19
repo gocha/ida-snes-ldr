@@ -138,6 +138,103 @@ static ea_t xlat_hirom(ea_t address)
 }
 
 //----------------------------------------------------------------------------
+// rom name=program.rom size=hex(rom_size)
+// ram name=save.ram size=hex(ram_size)
+// map id=rom address=00-3f:8000-ffff base=0x400000
+// map id=rom address=40-7f:0000-ffff base=0x400000
+// map id=rom address=80-bf:8000-ffff mask=0xc00000
+// map id=rom address=c0-ff:0000-ffff mask=0xc00000
+// map id=ram address=20-3f,a0-bf:6000-7fff mask=0xe000
+// map id=ram address=70-7f:[0000-7fff|0000-ffff]
+static ea_t xlat_exhirom(ea_t address)
+{
+  uint16 addr = address & 0xffff;
+  uint8 bank = (address >> 16) & 0xff;
+
+  // WRAM
+  if ( bank >= 0x7e && bank <= 0x7f )
+    return address;
+
+  // SRAM
+  if ( g_cartridge.ram_size != 0 )
+  {
+    if ( ( bank >= 0x20 && bank <= 0x3f ) || ( bank >= 0xa0 && bank <= 0xbf ) )
+    {
+      if ( addr >= 0x6000 && addr <= 0x7fff )
+      {
+        // HiROM SRAM style
+        uint32 ram_mask = g_cartridge.ram_size - 1;
+        uint32 ram_offset = (((bank & 0x1f) << 13) + (addr - 0x6000)) & ram_mask;
+        return ((0x20 + (ram_offset >> 13)) << 16) + (0x6000 + (ram_offset & 0x1fff));
+      }
+    }
+    else if ( bank >= 0x70 && bank <= 0x7d )
+    {
+      bool preserve_rom_mirror = (g_cartridge.rom_size > 0x200000) || (g_cartridge.ram_size > 32 * 1024);
+
+      if ( addr <= 0x7fff || !preserve_rom_mirror )
+      {
+        uint32 ram_mask = g_cartridge.ram_size - 1;
+        uint32 ram_offset = (((bank & 0xf) << 15) + (addr & 0x7fff)) & ram_mask;
+
+        ea_t ea = ((0x70 + (ram_offset >> 15)) << 16) + (ram_offset & 0x7fff);
+        if ( bank >= 0xfe )
+          ea += 0x800000;
+        return ea;
+      }
+    }
+  }
+
+  if ( ( bank >= 0x00 && bank <= 0x3f ) || ( bank >= 0x80 && bank <= 0xbf ) )
+  {
+    if ( addr <= 0x7fff )
+    {
+      if ( addr <= 0x1fff ) // Low RAM
+        return 0x7e0000 + addr;
+      else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
+        return addr;
+      else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
+        return addr;
+      else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
+        return addr;
+    }
+  }
+
+  if ( bank >= 0xc0 )
+  {
+    // ROM
+    return address;
+  }
+  else if ( bank >= 0x80 && bank <= 0xbf )
+  {
+    if ( addr >= 0x8000 )
+    {
+      // ROM (mirror to c0-ff)
+      return ((bank + 0x40) << 16) + addr;
+    }
+  }
+  else if ( bank >= 0x40 )
+  {
+    // Extended ROM
+    return address;
+  }
+  else
+  {
+    if ( addr >= 0x8000 )
+    {
+      // Extended ROM (mirror to 40-7f)
+      return ((bank + 0x40) << 16) + addr;
+    }
+  }
+
+  return address;
+}
+
+//----------------------------------------------------------------------------
 // superfx revision=4
 //   rom name=program.rom size=hex(rom_size)
 //   ram name=save.ram size=hex(ram_size)
@@ -300,6 +397,7 @@ static bool addr_init(const SuperFamicomCartridge & cartridge)
     case SuperFamicomCartridge::LoROM:
     case SuperFamicomCartridge::HiROM:
     case SuperFamicomCartridge::ExLoROM:
+    case SuperFamicomCartridge::ExHiROM:
     case SuperFamicomCartridge::SuperFXROM:
     case SuperFamicomCartridge::SA1ROM:
       return true;
@@ -320,6 +418,8 @@ ea_t xlat(ea_t address)
     case SuperFamicomCartridge::ExLoROM:
       // TODO: Real ExLoROM address map
       return xlat_lorom(address);
+    case SuperFamicomCartridge::ExHiROM:
+      return xlat_exhirom(address);
     case SuperFamicomCartridge::SuperFXROM:
       return xlat_superfxrom(address);
     case SuperFamicomCartridge::SA1ROM:
