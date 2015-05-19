@@ -187,6 +187,15 @@ static int idaapi notify(processor_t::idp_notify msgid, ...)
 
         if ( msgid == processor_t::newfile )
         {
+          if ( streq(device_ptr, "snes") )
+          {
+            if ( cartridge.has_superfx )
+              set_device_name("superfx", IORESP_ALL);
+
+            if ( cartridge.has_sa1 )
+              set_device_name("sa1", IORESP_ALL);
+          }
+
           set_device_name(device_ptr, IORESP_ALL);
 
           set_default_segreg_value(NULL, rFm, 1);
