@@ -200,7 +200,7 @@ static sel_t map_lorom_offset(linput_t *li, uint32 rom_start_in_file, uint32 rom
     if ( !add_segm(selector, start, end, seg_name, "BANK_ROM") )
       loader_failure("Failed adding .BANK segment\n");
 
-    if ( bank == 0x80 )
+    if ( bank == start_bank )
       start_sel = selector;
   }
 
@@ -237,7 +237,7 @@ static sel_t map_hirom_offset(linput_t *li, uint32 rom_start_in_file, uint32 rom
     if ( !add_segm(selector, start, end, seg_name, "BANK_ROM") )
       loader_failure("Failed adding .BANK segment\n");
 
-    if ( bank == 0xc0 )
+    if ( bank == start_bank )
       start_sel = selector;
   }
 
@@ -462,7 +462,7 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
   ea_t reset_vector_loc = xlat(0xfffc);
   uint16 start_pc = get_word(reset_vector_loc);
   ea_t start_address = xlat(start_pc);
-  inf.startIP  = start_address;
+  inf.startIP  = start_address & 0xffff;
   add_interrupt_vector(0xfffc, "Emulation-mode RESET", true);
 
   // http://en.wikibooks.org/wiki/Super_NES_Programming/SNES_memory_map

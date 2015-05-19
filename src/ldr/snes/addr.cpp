@@ -6,18 +6,53 @@
 static SuperFamicomCartridge g_cartridge;
 
 //----------------------------------------------------------------------------
-// rom name=program.rom size=hex(rom_size)
-// ram name=save.ram size=hex(ram_size)
-// map id=rom address=00-7f,80-ff:8000-ffff mask=0x8000
-// map id=ram address=70-7f,f0-ff:[0000-7fff|0000-ffff]
-static ea_t xlat_lorom(ea_t address)
+static ea_t xlat_system(ea_t address, bool & dispatched)
 {
   uint16 addr = address & 0xffff;
   uint8 bank = (address >> 16) & 0xff;
 
+  dispatched = true;
+
   // WRAM
   if ( bank >= 0x7e && bank <= 0x7f )
     return address;
+
+  if ( ( bank >= 0x00 && bank <= 0x3f ) || ( bank >= 0x80 && bank <= 0xbf ) )
+  {
+    if ( addr <= 0x1fff ) // Low RAM
+      return 0x7e0000 + addr;
+    else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
+      return addr;
+    else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
+      return addr;
+    else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
+      return addr;
+    else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
+      return addr;
+    else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
+      return addr;
+  }
+
+  dispatched = false;
+  return address;
+}
+
+//----------------------------------------------------------------------------
+// rom name=program.rom size=hex(rom_size)
+// ram name=save.ram size=hex(ram_size)
+// map id=rom address=00-7f,80-ff:8000-ffff mask=0x8000
+// map id=ram address=70-7f,f0-ff:[0000-7fff|0000-ffff]
+static ea_t xlat_lorom(ea_t address, bool & dispatched)
+{
+  uint16 addr = address & 0xffff;
+  uint8 bank = (address >> 16) & 0xff;
+
+  // SNES
+  ea_t snes_address = xlat_system(address, dispatched);
+  if ( dispatched )
+    return snes_address;
+
+  dispatched = true;
 
   // SRAM
   if ( g_cartridge.ram_size != 0 )
@@ -41,32 +76,21 @@ static ea_t xlat_lorom(ea_t address)
 
   // mirror 00-7d => 80-fd (excluding SRAM)
   if ( bank <= 0x7d )
-    return xlat_lorom(((0x80 + bank) << 16) + addr);
+  {
+    address += 0x800000;
+    bank += 0x80;
+  }
 
+  // ROM
   if ( bank <= 0xbf )
   {
-    if ( addr <= 0x7fff )
+    if ( addr >= 0x8000 )
     {
-      if ( addr <= 0x1fff ) // Low RAM
-        return 0x7e0000 + addr;
-      else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
-        return addr;
-      else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
-        return addr;
-    }
-    else
-    {
-      // ROM
       return address;
     }
   }
 
+  dispatched = false;
   return address;
 }
 
@@ -76,14 +100,17 @@ static ea_t xlat_lorom(ea_t address)
 // map id=rom address=00-3f,80-bf:8000-ffff
 // map id=rom address=40-7f,c0-ff:0000-ffff
 // map id=ram address=10-3f,90-bf:6000-7fff mask=0xe000
-static ea_t xlat_hirom(ea_t address)
+static ea_t xlat_hirom(ea_t address, bool & dispatched)
 {
   uint16 addr = address & 0xffff;
   uint8 bank = (address >> 16) & 0xff;
 
-  // WRAM
-  if ( bank >= 0x7e && bank <= 0x7f )
-    return address;
+  // SNES
+  ea_t snes_address = xlat_system(address, dispatched);
+  if ( dispatched )
+    return snes_address;
+
+  dispatched = true;
 
   // SRAM
   if ( g_cartridge.ram_size != 0 )
@@ -103,7 +130,10 @@ static ea_t xlat_hirom(ea_t address)
 
   // mirror 00-7d => 80-fd (excluding SRAM)
   if ( bank <= 0x7d )
-    return xlat_hirom(((0x80 + bank) << 16) + addr);
+  {
+    address += 0x800000;
+    bank += 0x80;
+  }
 
   if ( bank >= 0xc0 )
   {
@@ -112,28 +142,14 @@ static ea_t xlat_hirom(ea_t address)
   }
   else
   {
-    if ( addr <= 0x7fff )
-    {
-      if ( addr <= 0x1fff ) // Low RAM
-        return 0x7e0000 + addr;
-      else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
-        return addr;
-      else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
-        return addr;
-    }
-    else
+    if ( addr >= 0x8000 )
     {
       // ROM (LoROM-like layout)
       return ((0xc0 + (bank & 0x3f)) << 16) + addr;
     }
   }
 
+  dispatched = false;
   return address;
 }
 
@@ -146,14 +162,17 @@ static ea_t xlat_hirom(ea_t address)
 // map id=rom address=c0-ff:0000-ffff mask=0xc00000
 // map id=ram address=20-3f,a0-bf:6000-7fff mask=0xe000
 // map id=ram address=70-7f:[0000-7fff|0000-ffff]
-static ea_t xlat_exhirom(ea_t address)
+static ea_t xlat_exhirom(ea_t address, bool & dispatched)
 {
   uint16 addr = address & 0xffff;
   uint8 bank = (address >> 16) & 0xff;
 
-  // WRAM
-  if ( bank >= 0x7e && bank <= 0x7f )
-    return address;
+  // SNES
+  ea_t snes_address = xlat_system(address, dispatched);
+  if ( dispatched )
+    return snes_address;
+
+  dispatched = true;
 
   // SRAM
   if ( g_cartridge.ram_size != 0 )
@@ -185,25 +204,6 @@ static ea_t xlat_exhirom(ea_t address)
     }
   }
 
-  if ( ( bank >= 0x00 && bank <= 0x3f ) || ( bank >= 0x80 && bank <= 0xbf ) )
-  {
-    if ( addr <= 0x7fff )
-    {
-      if ( addr <= 0x1fff ) // Low RAM
-        return 0x7e0000 + addr;
-      else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
-        return addr;
-      else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
-        return addr;
-    }
-  }
-
   if ( bank >= 0xc0 )
   {
     // ROM
@@ -231,6 +231,7 @@ static ea_t xlat_exhirom(ea_t address)
     }
   }
 
+  dispatched = false;
   return address;
 }
 
@@ -243,14 +244,17 @@ static ea_t xlat_exhirom(ea_t address)
 //   map id=rom address=40-5f,c0-df:0000-ffff
 //   map id=ram address=00-3f,80-bf:6000-7fff size=0x2000
 //   map id=ram address=70-71,f0-f1:0000-ffff
-static ea_t xlat_superfxrom(ea_t address)
+static ea_t xlat_superfxrom(ea_t address, bool & dispatched)
 {
   uint16 addr = address & 0xffff;
   uint8 bank = (address >> 16) & 0xff;
 
-  // WRAM
-  if ( bank >= 0x7e && bank <= 0x7f )
-    return address;
+  // SNES
+  ea_t snes_address = xlat_system(address, dispatched);
+  if ( dispatched )
+    return snes_address;
+
+  dispatched = true;
 
   // SuperFX RAM
   if ( g_cartridge.ram_size != 0 )
@@ -277,30 +281,14 @@ static ea_t xlat_superfxrom(ea_t address)
   }
   else if ( ( bank >= 0x00 && bank <= 0x3f ) || ( bank >= 0x80 && bank <= 0xbf ) )
   {
-    if ( addr <= 0x7fff )
-    {
-      if ( addr <= 0x1fff ) // Low RAM
-        return 0x7e0000 + addr;
-      else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
-        return addr;
-      else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
-        return addr;
-      else if ( addr >= 0x3000 && addr <= 0x34ff ) // SuperFX registers
-        return addr;
-    }
-    else
+    if ( addr >= 0x8000 )
     {
       // ROM (LoROM layout)
       return address;
     }
   }
 
+  dispatched = false;
   return address;
 }
 
@@ -315,18 +303,24 @@ static ea_t xlat_superfxrom(ea_t address)
 //   map id=bwram address=00-3f,80-bf:6000-7fff
 //   map id=bwram address=40-4f:0000-ffff
 //   map id=iram address=00-3f,80-bf:3000-37ff
-static ea_t xlat_sa1rom(ea_t address)
+static ea_t xlat_sa1rom(ea_t address, bool & dispatched)
 {
   uint16 addr = address & 0xffff;
   uint8 bank = (address >> 16) & 0xff;
 
+  // SNES
+  ea_t snes_address = xlat_system(address, dispatched);
+  if ( dispatched )
+    return snes_address;
+
+  dispatched = true;
+
   // mirror 80-bf => 00-3f
   if ( bank >= 0x80 && bank <= 0xbf )
-    return xlat_hirom(((bank - 0x80) << 16) + addr);
-
-  // WRAM
-  if ( bank >= 0x7e && bank <= 0x7f )
-    return address;
+  {
+    address -= 0x800000;
+    bank -= 0x80;
+  }
 
   // SA1 BWRAM (SRAM)
   if ( g_cartridge.ram_size != 0 )
@@ -354,26 +348,7 @@ static ea_t xlat_sa1rom(ea_t address)
   }
   else if ( bank <= 0x3f )
   {
-    if ( addr <= 0x7fff )
-    {
-      if ( addr <= 0x1fff ) // Low RAM
-        return 0x7e0000 + addr;
-      else if ( addr >= 0x2100 && addr <= 0x213f ) // PPU registers
-        return addr;
-      else if ( addr >= 0x2140 && addr <= 0x2183 ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4016 && addr <= 0x4017 ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4200 && addr <= 0x421f ) // CPU registers
-        return addr;
-      else if ( addr >= 0x4300 && addr <= 0x437f ) // CPU registers
-        return addr;
-      else if ( addr >= 0x2200 && addr <= 0x23ff ) // SA1 registers
-        return addr;
-      else if ( addr >= 0x3000 && addr <= 0x37ff ) // SA1 IWRAM
-        return addr;
-    }
-    else
+    if ( addr >= 0x8000 )
     {
       // ROM (LoROM layout)
       return address;
@@ -384,6 +359,7 @@ static ea_t xlat_sa1rom(ea_t address)
   // 00-3f|80-bf:0000-07ff IWRAM (SA1 side)
   // 60-6f:0000-ffff       BWRAM Bitmap (SA1 side)
 
+  dispatched = false;
   return address;
 }
 
@@ -409,21 +385,22 @@ static bool addr_init(const SuperFamicomCartridge & cartridge)
 //----------------------------------------------------------------------------
 ea_t xlat(ea_t address)
 {
+  bool dispatched;
   switch ( g_cartridge.mapper )
   {
     case SuperFamicomCartridge::LoROM:
-      return xlat_lorom(address);
+      return xlat_lorom(address, dispatched);
     case SuperFamicomCartridge::HiROM:
-      return xlat_hirom(address);
+      return xlat_hirom(address, dispatched);
     case SuperFamicomCartridge::ExLoROM:
       // TODO: Real ExLoROM address map
-      return xlat_lorom(address);
+      return xlat_lorom(address, dispatched);
     case SuperFamicomCartridge::ExHiROM:
-      return xlat_exhirom(address);
+      return xlat_exhirom(address, dispatched);
     case SuperFamicomCartridge::SuperFXROM:
-      return xlat_superfxrom(address);
+      return xlat_superfxrom(address, dispatched);
     case SuperFamicomCartridge::SA1ROM:
-      return xlat_sa1rom(address);
+      return xlat_sa1rom(address, dispatched);
     default:
       return address;
   }
