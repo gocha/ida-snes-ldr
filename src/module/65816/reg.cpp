@@ -202,6 +202,36 @@ static int idaapi notify(processor_t::idp_notify msgid, ...)
           if ( cartridge.has_sdd1 )
             set_device_name("sdd1", IORESP_ALL);
 
+          if ( cartridge.has_sharprtc )
+            set_device_name("sharprtc", IORESP_ALL);
+
+          if ( cartridge.has_epsonrtc )
+            set_device_name("epsonrtc", IORESP_ALL);
+
+          if ( cartridge.has_obc1 )
+            set_device_name("obc1", IORESP_ALL);
+
+          if ( cartridge.has_dsp1 )
+            set_device_name("dsp1", IORESP_ALL);
+
+          if ( cartridge.has_dsp2 )
+            set_device_name("dsp2", IORESP_ALL);
+
+          if ( cartridge.has_dsp3 )
+            set_device_name("dsp3", IORESP_ALL);
+
+          if ( cartridge.has_dsp4 )
+            set_device_name("dsp4", IORESP_ALL);
+
+          if ( cartridge.has_st010 )
+            set_device_name("st010", IORESP_ALL);
+
+          if ( cartridge.has_st011 )
+            set_device_name("st011", IORESP_ALL);
+
+          if ( cartridge.has_st018 )
+            set_device_name("st018", IORESP_ALL);
+
           set_device_name(device_ptr, IORESP_ALL);
 
           set_default_segreg_value(NULL, rFm, 1);

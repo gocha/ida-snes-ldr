@@ -574,6 +574,164 @@ static ea_t xlat_sa1rom(ea_t address, bool & dispatched)
 }
 
 //----------------------------------------------------------------------------
+// sharprtc
+//   ram name=rtc.ram size=0x10
+//   map id=io address=00-3f,80-bf:2800-2801
+static ea_t xlat_sharprtc(ea_t address, bool & dispatched)
+{
+  uint16 addr = address & 0xffff;
+  uint8 bank = (address >> 16) & 0xff;
+
+  dispatched = true;
+
+  if ( bank <= 0x3f || ( bank >= 0x80 && bank <= 0xbf ) )
+  {
+    if ( addr >= 0x2800 && addr <= 0x2801 )
+    {
+      return addr;
+    }
+  }
+
+  dispatched = false;
+  return false;
+}
+
+//----------------------------------------------------------------------------
+// epsonrtc
+//   ram name=rtc.ram size=0x10
+//   map id=io address=00-3f,80-bf:4840-4842
+static ea_t xlat_epsonrtc(ea_t address, bool & dispatched)
+{
+  uint16 addr = address & 0xffff;
+  uint8 bank = (address >> 16) & 0xff;
+
+  dispatched = true;
+
+  if ( bank <= 0x3f || ( bank >= 0x80 && bank <= 0xbf ) )
+  {
+    if ( addr >= 0x4840 && addr <= 0x4842 )
+    {
+      return addr;
+    }
+  }
+
+  dispatched = false;
+  return false;
+}
+
+//----------------------------------------------------------------------------
+// obc1
+//   ram name=save.ram size=0x2000
+//   map id=io address=00-3f,80-bf:6000-7fff
+static ea_t xlat_obc1(ea_t address, bool & dispatched)
+{
+  // TODO: Add OBC-1 address mapping
+  dispatched = false;
+  return address;
+}
+
+//----------------------------------------------------------------------------
+// necdsp model=uPD7725 frequency=8000000
+//   rom id=program name=dsp1b.program.rom size=0x1800
+//   rom id=data name=dsp1b.data.rom size=0x800
+//   ram id=data size=0x200
+// 
+// when DSP1LoROM1MB:
+//   map id=io address=20-3f,a0-bf:8000-ffff select=0x4000
+// 
+// when DSP1LoROM2MB:
+//   map id=io address=60-6f,e0-ef:0000-7fff select=0x4000
+// 
+// when DSP1HiROM:
+//   map id=io address=00-1f,80-9f:6000-7fff select=0x1000
+static ea_t xlat_dsp1(ea_t address, SuperFamicomCartridge::DSP1MemoryMapper dsp1_mapper, bool & dispatched)
+{
+  // TODO: Add DSP-1 address mapping
+  dispatched = false;
+  return address;
+}
+
+//----------------------------------------------------------------------------
+// necdsp model=uPD7725 frequency=8000000
+//   rom id=program name=dsp2.program.rom size=0x1800
+//   rom id=data name=dsp2.data.rom size=0x800
+//   ram id=data size=0x200
+//   map id=io address=20-3f,a0-bf:8000-ffff select=0x4000
+static ea_t xlat_dsp2(ea_t address, bool & dispatched)
+{
+  // TODO: Add DSP-2 address mapping
+  dispatched = false;
+  return address;
+}
+
+//----------------------------------------------------------------------------
+// necdsp model=uPD7725 frequency=8000000
+//   rom id=program name=dsp3.program.rom size=0x1800
+//   rom id=data name=dsp3.data.rom size=0x800
+//   ram id=data size=0x200
+//   map id=io address=20-3f,a0-bf:8000-ffff select=0x4000
+static ea_t xlat_dsp3(ea_t address, bool & dispatched)
+{
+  // TODO: Add DSP-3 address mapping
+  dispatched = false;
+  return address;
+}
+
+//----------------------------------------------------------------------------
+// necdsp model=uPD7725 frequency=8000000
+//   rom id=program name=dsp4.program.rom size=0x1800
+//   rom id=data name=dsp4.data.rom size=0x800
+//   ram id=data size=0x200
+//   map id=io address=30-3f,b0-bf:8000-ffff select=0x4000
+static ea_t xlat_dsp4(ea_t address, bool & dispatched)
+{
+  // TODO: Add DSP-4 address mapping
+  dispatched = false;
+  return address;
+}
+
+//----------------------------------------------------------------------------
+// necdsp model=uPD96050 frequency=11000000
+//   rom id=program name=st010.program.rom size=0xc000
+//   rom id=data name=st010.data.rom size=0x1000
+//   ram id=data name=save.ram size=0x1000
+//   map id=io address=60-67,e0-e7:0000-3fff select=0x0001
+//   map id=ram address=68-6f,e8-ef:0000-7fff
+static ea_t xlat_st010(ea_t address, bool & dispatched)
+{
+  // TODO: Add ST-010 address mapping
+  dispatched = false;
+  return address;
+}
+
+//----------------------------------------------------------------------------
+// necdsp model=uPD96050 frequency=15000000
+//   rom id=program name=st011.program.rom size=0xc000
+//   rom id=data name=st011.data.rom size=0x1000
+//   ram id=data name=save.ram size=0x1000
+//   map id=io address=60-67,e0-e7:0000-3fff select=0x0001
+//   map id=ram address=68-6f,e8-ef:0000-7fff
+static ea_t xlat_st011(ea_t address, bool & dispatched)
+{
+  // TODO: Add ST-011 address mapping
+  dispatched = false;
+  return address;
+}
+
+//----------------------------------------------------------------------------
+// armdsp frequency=21477272
+//   rom id=program name=st018.program.rom size=0x20000
+//   rom id=data name=st018.data.rom size=0x8000
+//   ram name=save.ram size=0x4000
+//   map id=io address=00-3f,80-bf:3800-38ff
+static ea_t xlat_st018(ea_t address, bool & dispatched)
+{
+  // TODO: Add ST-018 address mapping
+  dispatched = false;
+  return address;
+}
+
+//----------------------------------------------------------------------------
 static bool addr_init(const SuperFamicomCartridge & cartridge)
 {
   g_cartridge = cartridge;
@@ -606,34 +764,109 @@ ea_t xlat(ea_t address)
   if ( g_cartridge.has_cx4 )
   {
     remapped_address = xlat_cx4(address, dispatched);
-    if ( dispatched )
-      return remapped_address;
   }
   else if ( g_cartridge.has_sdd1 )
   {
     remapped_address = xlat_sdd1(address, dispatched);
-    if ( dispatched )
-      return remapped_address;
   }
   else
   {
     switch ( g_cartridge.mapper )
     {
       case SuperFamicomCartridge::LoROM:
-        return xlat_lorom(address, dispatched);
+        remapped_address = xlat_lorom(address, dispatched);
+        break;
       case SuperFamicomCartridge::HiROM:
-        return xlat_hirom(address, dispatched);
+        remapped_address = xlat_hirom(address, dispatched);
+        break;
       case SuperFamicomCartridge::ExLoROM:
-        return xlat_exlorom(address, dispatched);
+        remapped_address = xlat_exlorom(address, dispatched);
+        break;
       case SuperFamicomCartridge::ExHiROM:
-        return xlat_exhirom(address, dispatched);
+        remapped_address = xlat_exhirom(address, dispatched);
+        break;
       case SuperFamicomCartridge::SuperFXROM:
-        return xlat_superfxrom(address, dispatched);
+        remapped_address = xlat_superfxrom(address, dispatched);
+        break;
       case SuperFamicomCartridge::SA1ROM:
-        return xlat_sa1rom(address, dispatched);
+        remapped_address = xlat_sa1rom(address, dispatched);
+        break;
       case SuperFamicomCartridge::SPC7110ROM:
-        return xlat_spc7110(address, dispatched);
+        remapped_address = xlat_spc7110(address, dispatched);
+        break;
     }
+  }
+  if ( dispatched )
+    return remapped_address;
+
+  if ( g_cartridge.has_sharprtc )
+  {
+    remapped_address = xlat_sharprtc(address, dispatched);
+    if ( dispatched )
+      return remapped_address;
+  }
+
+  if ( g_cartridge.has_epsonrtc )
+  {
+    remapped_address = xlat_epsonrtc(address, dispatched);
+    if ( dispatched )
+      return remapped_address;
+  }
+
+  if ( g_cartridge.has_obc1 )
+  {
+    remapped_address = xlat_obc1(address, dispatched);
+    if ( dispatched )
+      return remapped_address;
+  }
+
+  if ( g_cartridge.has_dsp1 )
+  {
+    remapped_address = xlat_dsp1(address, g_cartridge.dsp1_mapper, dispatched);
+    if ( dispatched )
+      return remapped_address;
+  }
+
+  if ( g_cartridge.has_dsp2 )
+  {
+    remapped_address = xlat_dsp2(address, dispatched);
+    if ( dispatched )
+      return remapped_address;
+  }
+
+  if ( g_cartridge.has_dsp3 )
+  {
+    remapped_address = xlat_dsp3(address, dispatched);
+    if ( dispatched )
+      return remapped_address;
+  }
+
+  if ( g_cartridge.has_dsp4 )
+  {
+    remapped_address = xlat_dsp4(address, dispatched);
+    if ( dispatched )
+      return remapped_address;
+  }
+
+  if ( g_cartridge.has_st010 )
+  {
+    remapped_address = xlat_st010(address, dispatched);
+    if ( dispatched )
+      return remapped_address;
+  }
+
+  if ( g_cartridge.has_st011 )
+  {
+    remapped_address = xlat_st011(address, dispatched);
+    if ( dispatched )
+      return remapped_address;
+  }
+
+  if ( g_cartridge.has_st018 )
+  {
+    remapped_address = xlat_st018(address, dispatched);
+    if ( dispatched )
+      return remapped_address;
   }
 
   return address;

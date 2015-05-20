@@ -446,6 +446,66 @@ static sel_t map_sdd1_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 r
 }
 
 //----------------------------------------------------------------------------
+static void map_sharprtc()
+{
+  map_io_seg(0x2800, 0x2802, "sharprtc");
+}
+
+//----------------------------------------------------------------------------
+static void map_epsonrtc()
+{
+  map_io_seg(0x4840, 0x4843, "epsonrtc");
+}
+
+//----------------------------------------------------------------------------
+static void map_obc1()
+{
+  // TODO: Add OBC-1 registers
+}
+
+//----------------------------------------------------------------------------
+static void map_dsp1(SuperFamicomCartridge::DSP1MemoryMapper dsp1_mapper)
+{
+  // TODO: Add DSP-1 registers
+}
+
+//----------------------------------------------------------------------------
+static void map_dsp2()
+{
+  // TODO: Add DSP-2 registers
+}
+
+//----------------------------------------------------------------------------
+static void map_dsp3()
+{
+  // TODO: Add DSP-3 registers
+}
+
+//----------------------------------------------------------------------------
+static void map_dsp4()
+{
+  // TODO: Add DSP-4 registers
+}
+
+//----------------------------------------------------------------------------
+static void map_st010()
+{
+  // TODO: Add ST-010 registers
+}
+
+//----------------------------------------------------------------------------
+static void map_st011()
+{
+  // TODO: Add ST-011 registers
+}
+
+//----------------------------------------------------------------------------
+static void map_st018()
+{
+  // TODO: Add ST-018 registers
+}
+
+//----------------------------------------------------------------------------
 int idaapi accept_file(
         linput_t *li,
         char fileformatname[MAX_FILE_FORMAT_NAME],
@@ -573,6 +633,36 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
 
   // WRAM
   map_wram();
+
+  if ( cartridge.has_sharprtc )
+    map_sharprtc();
+
+  if ( cartridge.has_epsonrtc )
+    map_epsonrtc();
+
+  if ( cartridge.has_obc1 )
+    map_obc1();
+
+  if ( cartridge.has_dsp1 )
+    map_dsp1(cartridge.dsp1_mapper);
+
+  if ( cartridge.has_dsp2 )
+    map_dsp2();
+
+  if ( cartridge.has_dsp3 )
+    map_dsp3();
+
+  if ( cartridge.has_dsp4 )
+    map_dsp4();
+
+  if ( cartridge.has_st010 )
+    map_st010();
+
+  if ( cartridge.has_st011 )
+    map_st011();
+
+  if ( cartridge.has_st018 )
+    map_st018();
 
   ea_t reset_vector_loc = xlat(0xfffc);
   uint16 start_pc = get_word(reset_vector_loc);
