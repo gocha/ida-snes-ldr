@@ -44,7 +44,7 @@ static bool ioresp_ok(void)
   if ( inf.like_binary() )
     return true;
   else
-    return get_segm_by_name("gpuapu") != NULL;
+    return get_segm_by_name("gpu") != NULL;
 }
 #define CHECK_IORESP      ioresp_ok()
 #include "../iocommon.cpp"
