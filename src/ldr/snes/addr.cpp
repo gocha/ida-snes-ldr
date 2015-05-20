@@ -80,7 +80,72 @@ static ea_t xlat_cx4(ea_t address, bool & dispatched)
     }
     else if ( addr >= 0x6000 && addr <= 0x7fff )
     {
-      // C4 registers
+      // CX4 registers
+      return addr;
+    }
+  }
+
+  dispatched = false;
+  return address;
+}
+
+//----------------------------------------------------------------------------
+// spc7110
+//   rom id=program name=program.rom size=0x100000
+//   rom id=data name=data.rom size=hex(rom_size - 0x100000)
+//   ram name=save.ram size=0x", hex(ram_size)
+//   map id=io address=00-3f,80-bf:4800-483f
+//   map id=io address=50:0000-ffff
+//   map id=rom address=00-3f,80-bf:8000-ffff
+//   map id=rom address=c0-ff:0000-ffff
+//   map id=ram address=00-3f,80-bf:6000-7fff mask=0xe000
+static ea_t xlat_spc7110(ea_t address, bool & dispatched)
+{
+  uint16 addr = address & 0xffff;
+  uint8 bank = (address >> 16) & 0xff;
+
+  dispatched = true;
+
+  // SRAM
+  if ( g_cartridge.ram_size != 0 )
+  {
+    if ( ( bank >= 0x00 && bank <= 0x3f ) || ( bank >= 0x80 && bank <= 0xbf ) )
+    {
+      if ( addr >= 0x6000 && addr <= 0x7fff )
+      {
+        uint32 ram_mask = g_cartridge.ram_size - 1;
+        uint32 ram_offset = (((bank & 0x1f) << 13) + (addr - 0x6000)) & ram_mask;
+        return ((0x00 + (ram_offset >> 13)) << 16) + (0x6000 + (ram_offset & 0x1fff));
+      }
+    }
+  }
+
+  // Decompressed ROM
+  if ( bank >= 0x50 && bank <= 0x5f )
+    return address;
+
+  // mirror 00-7d => 80-fd (excluding SRAM, Decompressed ROM)
+  if ( bank <= 0x7d )
+  {
+    address += 0x800000;
+    bank += 0x80;
+  }
+
+  if ( bank >= 0xc0 )
+  {
+    // ROM (HiROM layout)
+    return address;
+  }
+  else
+  {
+    if ( addr >= 0x8000 )
+    {
+      // ROM (LoROM-like layout)
+      return ((0xc0 + (bank & 0x3f)) << 16) + addr;
+    }
+    else if ( addr >= 0x4800 && addr <= 0x483f )
+    {
+      // SPC7110 registers
       return addr;
     }
   }
@@ -521,6 +586,7 @@ static bool addr_init(const SuperFamicomCartridge & cartridge)
     case SuperFamicomCartridge::ExHiROM:
     case SuperFamicomCartridge::SuperFXROM:
     case SuperFamicomCartridge::SA1ROM:
+    case SuperFamicomCartridge::SPC7110ROM:
       return true;
     default:
       return false;
@@ -565,6 +631,8 @@ ea_t xlat(ea_t address)
         return xlat_superfxrom(address, dispatched);
       case SuperFamicomCartridge::SA1ROM:
         return xlat_sa1rom(address, dispatched);
+      case SuperFamicomCartridge::SPC7110ROM:
+        return xlat_spc7110(address, dispatched);
     }
   }
 

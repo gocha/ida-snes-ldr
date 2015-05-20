@@ -43,16 +43,16 @@ static void map_wram()
 }
 
 //----------------------------------------------------------------------------
-static void map_lorom_sram(uint32 ram_size, bool preserve_rom_mirror)
+static void map_lorom_sram_offset(uint32 ram_size, uint8 start_bank, bool preserve_rom_mirror)
 {
   // Usually, the lower half of bank (0x8000 bytes) is SRAM, and the upper half is ROM mirror.
   // However, some cartridges maps the whole of bank (0x10000 bytes) to SRAM.
   // In that case, the upper half is probably mirrored as same as the lower half.
 
-  // create ram banks 70-7d (and fe-ff)
+  // create ram banks
   const uint32 bank_size = 0x8000;
   uint32 ram_chunks = (ram_size + bank_size - 1) / bank_size;
-  for ( uint32 mapped = 0, bank = 0x70; mapped < ram_chunks; bank++, mapped++ )
+  for ( uint32 mapped = 0, bank = start_bank; mapped < ram_chunks; bank++, mapped++ )
   {
     if (bank == 0x7e)
       bank = 0xfe;
@@ -71,12 +71,12 @@ static void map_lorom_sram(uint32 ram_size, bool preserve_rom_mirror)
 }
 
 //----------------------------------------------------------------------------
-static void map_hirom_sram(uint32 ram_size)
+static void map_hirom_sram_offset(uint32 ram_size, uint8 start_bank)
 {
-  // create ram banks 20-3f
+  // create ram banks
   const uint32 bank_size = 0x2000;
   uint32 ram_chunks = (ram_size + bank_size - 1) / bank_size;
-  for ( uint32 mapped = 0, bank = 0x20; mapped < ram_chunks; bank++, mapped++ )
+  for ( uint32 mapped = 0, bank = start_bank; mapped < ram_chunks; bank++, mapped++ )
   {
     segment_t s;
     s.startEA = (bank << 16) + 0x6000;
@@ -89,6 +89,20 @@ static void map_hirom_sram(uint32 ram_size)
     if ( !add_segm_ex(&s, seg_name, "BANK_RAM", ADDSEG_NOSREG) )
       loader_failure("Failed adding %s segment\n", seg_name);
   }
+}
+
+//----------------------------------------------------------------------------
+static void map_lorom_sram(uint32 ram_size, bool preserve_rom_mirror)
+{
+  // create ram banks 70-7d (and fe-ff)
+  map_lorom_sram_offset(ram_size, 0x70, preserve_rom_mirror);
+}
+
+//----------------------------------------------------------------------------
+static void map_hirom_sram(uint32 ram_size)
+{
+  // create ram banks 20-3f
+  map_hirom_sram_offset(ram_size, 0x20);
 }
 
 //----------------------------------------------------------------------------
@@ -179,6 +193,13 @@ static void map_sa1_hwregs()
 static void map_cx4_hwregs()
 {
   map_io_seg(0x6000, 0x8000, "cx4");
+}
+
+//----------------------------------------------------------------------------
+static void map_spc7110_hwregs()
+{
+  map_io_seg(0x4800, 0x4840, "spc7110");
+  map_io_seg(0x500000, 0x600000, "decomprom");
 }
 
 //----------------------------------------------------------------------------
@@ -401,6 +422,19 @@ static sel_t map_cx4_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 ro
 }
 
 //----------------------------------------------------------------------------
+static sel_t map_spc7110_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
+{
+  sel_t start_sel = map_hirom_offset(li, rom_start_in_file, qmin(rom_size, 0x100000), 0xc0, 0);
+
+  // create ram banks 00-3f
+  map_hirom_sram_offset(ram_size, 0x00);
+
+  map_spc7110_hwregs();
+
+  return start_sel;
+}
+
+//----------------------------------------------------------------------------
 static sel_t map_sdd1_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
   sel_t start_sel = map_sdd1rom(li, rom_start_in_file, rom_size);
@@ -497,6 +531,10 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
   if ( cartridge.has_cx4 )
   {
     start_cs = map_cx4_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+  }
+  else if ( cartridge.has_spc7110 )
+  {
+    start_cs = map_spc7110_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
   }
   else if ( cartridge.has_sdd1 )
   {
