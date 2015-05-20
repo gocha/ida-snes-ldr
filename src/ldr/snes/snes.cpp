@@ -176,6 +176,12 @@ static void map_sa1rom_hwregs()
 }
 
 //----------------------------------------------------------------------------
+static void map_sdd1_hwregs()
+{
+  map_io_seg(0x4800, 0x4808, "sdd1");
+}
+
+//----------------------------------------------------------------------------
 static sel_t map_lorom_offset(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint8 start_bank, uint32 offset)
 {
   // 32KB chunks count
@@ -185,6 +191,9 @@ static sel_t map_lorom_offset(linput_t *li, uint32 rom_start_in_file, uint32 rom
   sel_t start_sel = 0;
   for ( uint32 mapped = 0, bank = start_bank; mapped < chunks; bank++, mapped++ )
   {
+    if ( bank == 0x7e || bank == 0x7f )
+      continue;
+
     uint32 map_size = qmin(0x8000, rom_size - (0x8000 * mapped));
 
     ea_t start         = (bank << 16) + 0x8000;
@@ -208,13 +217,6 @@ static sel_t map_lorom_offset(linput_t *li, uint32 rom_start_in_file, uint32 rom
 }
 
 //----------------------------------------------------------------------------
-static sel_t map_lorom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
-{
-  // map rom to banks 80-ff
-  return map_lorom_offset(li, rom_start_in_file, rom_size, 0x80, 0);
-}
-
-//----------------------------------------------------------------------------
 static sel_t map_hirom_offset(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint8 start_bank, uint32 offset)
 {
   sel_t start_sel = 0;
@@ -223,6 +225,9 @@ static sel_t map_hirom_offset(linput_t *li, uint32 rom_start_in_file, uint32 rom
   uint32 chunks = (rom_size + 0x10000 - 1) / 0x10000;
   for (uint32 mapped = 0, bank = start_bank; mapped < chunks; bank++, mapped++ )
   {
+    if ( bank == 0x7e || bank == 0x7f )
+      continue;
+
     uint32 map_size = qmin(0x10000, rom_size - (0x10000 * mapped));
 
     ea_t start         = bank << 16;
@@ -242,6 +247,13 @@ static sel_t map_hirom_offset(linput_t *li, uint32 rom_start_in_file, uint32 rom
   }
 
   return start_sel;
+}
+
+//----------------------------------------------------------------------------
+static sel_t map_lorom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
+{
+  // map rom to banks 80-ff
+  return map_lorom_offset(li, rom_start_in_file, rom_size, 0x80, 0);
 }
 
 //----------------------------------------------------------------------------
@@ -291,6 +303,18 @@ static sel_t map_sa1rom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
 }
 
 //----------------------------------------------------------------------------
+static sel_t map_sdd1rom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
+{
+  // map rom to banks 80-bf (LoROM layout)
+  sel_t start_sel = map_lorom_offset(li, rom_start_in_file, qmin(rom_size, 0x200000), 0x80, 0);
+
+  // map rom to banks c0-ff (HiROM layout)
+  map_hirom_offset(li, rom_start_in_file, qmin(rom_size, 0x400000), 0xc0, 0);
+
+  return start_sel;
+}
+
+//----------------------------------------------------------------------------
 static sel_t map_lorom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
   sel_t start_sel = map_lorom(li, rom_start_in_file, qmin(rom_size, 0x400000));
@@ -307,6 +331,19 @@ static sel_t map_hirom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 
   sel_t start_sel = map_hirom(li, rom_start_in_file, qmin(rom_size, 0x400000));
 
   map_hirom_sram(ram_size);
+
+  return start_sel;
+}
+
+//----------------------------------------------------------------------------
+static sel_t map_exlorom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
+{
+  // S-DD1 cartridge should be handled by map_sdd1_cartridge
+  sel_t start_sel = map_lorom_offset(li, rom_start_in_file, qmin(rom_size, 0x200000), 0x80, 0);
+
+  map_hirom_offset(li, rom_start_in_file, qmin(rom_size, 0x400000), 0x40, 0);
+
+  map_lorom_sram(ram_size, true);
 
   return start_sel;
 }
@@ -341,6 +378,17 @@ static sel_t map_sa1rom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32
   map_sa1rom_bwram(ram_size);
   map_sa1rom_iram();
   map_sa1rom_hwregs();
+
+  return start_sel;
+}
+
+//----------------------------------------------------------------------------
+static sel_t map_sdd1_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
+{
+  sel_t start_sel = map_sdd1rom(li, rom_start_in_file, rom_size);
+
+  map_lorom_sram(ram_size, true);
+  map_sdd1_hwregs();
 
   return start_sel;
 }
@@ -427,29 +475,36 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
   addr_init(cartridge);
 
   sel_t start_cs;
-  switch ( cartridge.mapper )
+
+  if ( cartridge.has_sdd1 )
   {
-    case SuperFamicomCartridge::LoROM:
-      start_cs = map_lorom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
-      break;
-    case SuperFamicomCartridge::HiROM:
-      start_cs = map_hirom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
-      break;
-    case SuperFamicomCartridge::ExLoROM:
-      warning("ExLoROM is not supported. It will be loaded as LoROM.");
-      start_cs = map_lorom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
-      break;
-    case SuperFamicomCartridge::ExHiROM:
-      start_cs = map_exhirom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
-      break;
-    case SuperFamicomCartridge::SuperFXROM:
-      start_cs = map_superfxrom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
-      break;
-    case SuperFamicomCartridge::SA1ROM:
-      start_cs = map_sa1rom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
-      break;
-    default:
-      loader_failure("Unsupported mapper: %s", cartridge.mapper_string());
+    start_cs = map_sdd1_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+  }
+  else
+  {
+    switch ( cartridge.mapper )
+    {
+      case SuperFamicomCartridge::LoROM:
+        start_cs = map_lorom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+        break;
+      case SuperFamicomCartridge::HiROM:
+        start_cs = map_hirom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+        break;
+      case SuperFamicomCartridge::ExLoROM:
+        start_cs = map_exlorom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+        break;
+      case SuperFamicomCartridge::ExHiROM:
+        start_cs = map_exhirom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+        break;
+      case SuperFamicomCartridge::SuperFXROM:
+        start_cs = map_superfxrom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+        break;
+      case SuperFamicomCartridge::SA1ROM:
+        start_cs = map_sa1rom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+        break;
+      default:
+        loader_failure("Unsupported mapper: %s", cartridge.mapper_string());
+    }
   }
   inf.start_cs = start_cs;
 

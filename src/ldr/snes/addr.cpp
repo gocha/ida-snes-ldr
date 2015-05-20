@@ -38,6 +38,70 @@ static ea_t xlat_system(ea_t address, bool & dispatched)
 }
 
 //----------------------------------------------------------------------------
+// sdd1
+//   rom name=program.rom size=hex(rom_size)
+//   ram name=save.ram size=hex(ram_size)
+//   map id=io address=00-3f,80-bf:4800-4807
+//   map id=rom address=00-3f,80-bf:8000-ffff mask=0x8000
+//   map id=rom address=c0-ff:0000-ffff
+//   map id=ram address=20-3f,a0-bf:6000-7fff mask=0xe000
+//   map id=ram address=70-7f:0000-7fff
+static ea_t xlat_sdd1(ea_t address, bool & dispatched)
+{
+  uint16 addr = address & 0xffff;
+  uint8 bank = (address >> 16) & 0xff;
+
+  dispatched = true;
+
+  // SRAM
+  if ( g_cartridge.ram_size != 0 )
+  {
+    if ( bank >= 0x70 && bank <= 0x7d )
+    {
+      if ( addr <= 0x7fff )
+      {
+        // LoROM SRAM style
+        uint32 ram_mask = g_cartridge.ram_size - 1;
+        uint32 ram_offset = (((bank & 0xf) << 15) + (addr & 0x7fff)) & ram_mask;
+        return ((0x70 + (ram_offset >> 15)) << 16) + (ram_offset & 0x7fff);
+      }
+    }
+    else if ( ( bank >= 0x20 && bank <= 0x3f ) || ( bank >= 0xa0 && bank <= 0xbf ) )
+    {
+      if ( addr >= 0x6000 && addr <= 0x7fff )
+      {
+        // HiROM SRAM style (not usually used?)
+        uint32 ram_mask = g_cartridge.ram_size - 1;
+        uint32 ram_offset = (((bank & 0x1f) << 13) + (addr - 0x6000)) & ram_mask;
+        return ((0x20 + (ram_offset >> 13)) << 16) + (0x6000 + (ram_offset & 0x1fff));
+      }
+    }
+  }
+
+  if ( bank <= 0x3f || ( bank >= 0x80 && bank <= 0xbf ) )
+  {
+    if ( addr >= 0x8000 )
+    {
+      // ROM (LoROM style)
+      return ((bank | 0x80) << 16) + addr;
+    }
+    else if ( addr >= 0x4800 && addr <= 0x4807 )
+    {
+      // S-DD1 registers
+      return addr;
+    }
+  }
+  else if ( bank >= 0xc0 && bank <= 0xff )
+  {
+    // ROM (HiROM style)
+    return address;
+  }
+
+  dispatched = false;
+  return address;
+}
+
+//----------------------------------------------------------------------------
 // rom name=program.rom size=hex(rom_size)
 // ram name=save.ram size=hex(ram_size)
 // map id=rom address=00-7f,80-ff:8000-ffff mask=0x8000
@@ -46,11 +110,6 @@ static ea_t xlat_lorom(ea_t address, bool & dispatched)
 {
   uint16 addr = address & 0xffff;
   uint8 bank = (address >> 16) & 0xff;
-
-  // SNES
-  ea_t snes_address = xlat_system(address, dispatched);
-  if ( dispatched )
-    return snes_address;
 
   dispatched = true;
 
@@ -105,11 +164,6 @@ static ea_t xlat_hirom(ea_t address, bool & dispatched)
   uint16 addr = address & 0xffff;
   uint8 bank = (address >> 16) & 0xff;
 
-  // SNES
-  ea_t snes_address = xlat_system(address, dispatched);
-  if ( dispatched )
-    return snes_address;
-
   dispatched = true;
 
   // SRAM
@@ -156,6 +210,63 @@ static ea_t xlat_hirom(ea_t address, bool & dispatched)
 //----------------------------------------------------------------------------
 // rom name=program.rom size=hex(rom_size)
 // ram name=save.ram size=hex(ram_size)
+// map id=rom address=00-3f,80-bf:8000-ffff mask=0x8000
+// map id=rom address=40-7f:0000-ffff
+// map id=ram address=20-3f,a0-bf:6000-7fff
+// map id=ram address=70-7f:0000-7fff
+static ea_t xlat_exlorom(ea_t address, bool & dispatched)
+{
+  uint16 addr = address & 0xffff;
+  uint8 bank = (address >> 16) & 0xff;
+
+  dispatched = true;
+
+  // SRAM
+  if ( g_cartridge.ram_size != 0 )
+  {
+    if ( bank >= 0x70 && bank <= 0x7d )
+    {
+      if ( addr <= 0x7fff )
+      {
+        // LoROM SRAM style
+        uint32 ram_mask = g_cartridge.ram_size - 1;
+        uint32 ram_offset = (((bank & 0xf) << 15) + (addr & 0x7fff)) & ram_mask;
+        return ((0x70 + (ram_offset >> 15)) << 16) + (ram_offset & 0x7fff);
+      }
+    }
+    else if ( ( bank >= 0x20 && bank <= 0x3f ) || ( bank >= 0xa0 && bank <= 0xbf ) )
+    {
+      if ( addr >= 0x6000 && addr <= 0x7fff )
+      {
+        // HiROM SRAM style (not usually used?)
+        uint32 ram_mask = g_cartridge.ram_size - 1;
+        uint32 ram_offset = (((bank & 0x1f) << 13) + (addr - 0x6000)) & ram_mask;
+        return ((0x20 + (ram_offset >> 13)) << 16) + (0x6000 + (ram_offset & 0x1fff));
+      }
+    }
+  }
+
+  if ( bank <= 0x3f || ( bank >= 0x80 && bank <= 0xbf ) )
+  {
+    if ( addr >= 0x8000 )
+    {
+      // ROM (LoROM style)
+      return ((bank | 0x80) << 16) + addr;
+    }
+  }
+  else if ( bank >= 0x40 && bank <= 0x7f )
+  {
+    // ROM (HiROM style)
+    return address;
+  }
+
+  dispatched = false;
+  return address;
+}
+
+//----------------------------------------------------------------------------
+// rom name=program.rom size=hex(rom_size)
+// ram name=save.ram size=hex(ram_size)
 // map id=rom address=00-3f:8000-ffff base=0x400000
 // map id=rom address=40-7f:0000-ffff base=0x400000
 // map id=rom address=80-bf:8000-ffff mask=0xc00000
@@ -166,11 +277,6 @@ static ea_t xlat_exhirom(ea_t address, bool & dispatched)
 {
   uint16 addr = address & 0xffff;
   uint8 bank = (address >> 16) & 0xff;
-
-  // SNES
-  ea_t snes_address = xlat_system(address, dispatched);
-  if ( dispatched )
-    return snes_address;
 
   dispatched = true;
 
@@ -193,13 +299,10 @@ static ea_t xlat_exhirom(ea_t address, bool & dispatched)
 
       if ( addr <= 0x7fff || !preserve_rom_mirror )
       {
+        // LoROM SRAM style (not usually used?)
         uint32 ram_mask = g_cartridge.ram_size - 1;
         uint32 ram_offset = (((bank & 0xf) << 15) + (addr & 0x7fff)) & ram_mask;
-
-        ea_t ea = ((0x70 + (ram_offset >> 15)) << 16) + (ram_offset & 0x7fff);
-        if ( bank >= 0xfe )
-          ea += 0x800000;
-        return ea;
+        return ((0x70 + (ram_offset >> 15)) << 16) + (ram_offset & 0x7fff);
       }
     }
   }
@@ -248,11 +351,6 @@ static ea_t xlat_superfxrom(ea_t address, bool & dispatched)
 {
   uint16 addr = address & 0xffff;
   uint8 bank = (address >> 16) & 0xff;
-
-  // SNES
-  ea_t snes_address = xlat_system(address, dispatched);
-  if ( dispatched )
-    return snes_address;
 
   dispatched = true;
 
@@ -307,11 +405,6 @@ static ea_t xlat_sa1rom(ea_t address, bool & dispatched)
 {
   uint16 addr = address & 0xffff;
   uint8 bank = (address >> 16) & 0xff;
-
-  // SNES
-  ea_t snes_address = xlat_system(address, dispatched);
-  if ( dispatched )
-    return snes_address;
 
   dispatched = true;
 
@@ -386,22 +479,36 @@ static bool addr_init(const SuperFamicomCartridge & cartridge)
 ea_t xlat(ea_t address)
 {
   bool dispatched;
-  switch ( g_cartridge.mapper )
+  ea_t remapped_address;
+
+  remapped_address = xlat_system(address, dispatched);
+  if ( dispatched )
+    return remapped_address;
+
+  if ( g_cartridge.has_sdd1 )
   {
-    case SuperFamicomCartridge::LoROM:
-      return xlat_lorom(address, dispatched);
-    case SuperFamicomCartridge::HiROM:
-      return xlat_hirom(address, dispatched);
-    case SuperFamicomCartridge::ExLoROM:
-      // TODO: Real ExLoROM address map
-      return xlat_lorom(address, dispatched);
-    case SuperFamicomCartridge::ExHiROM:
-      return xlat_exhirom(address, dispatched);
-    case SuperFamicomCartridge::SuperFXROM:
-      return xlat_superfxrom(address, dispatched);
-    case SuperFamicomCartridge::SA1ROM:
-      return xlat_sa1rom(address, dispatched);
-    default:
-      return address;
+    remapped_address = xlat_sdd1(address, dispatched);
+    if ( dispatched )
+      return remapped_address;
   }
+  else
+  {
+    switch ( g_cartridge.mapper )
+    {
+      case SuperFamicomCartridge::LoROM:
+        return xlat_lorom(address, dispatched);
+      case SuperFamicomCartridge::HiROM:
+        return xlat_hirom(address, dispatched);
+      case SuperFamicomCartridge::ExLoROM:
+        return xlat_exlorom(address, dispatched);
+      case SuperFamicomCartridge::ExHiROM:
+        return xlat_exhirom(address, dispatched);
+      case SuperFamicomCartridge::SuperFXROM:
+        return xlat_superfxrom(address, dispatched);
+      case SuperFamicomCartridge::SA1ROM:
+        return xlat_sa1rom(address, dispatched);
+    }
+  }
+
+  return address;
 }
