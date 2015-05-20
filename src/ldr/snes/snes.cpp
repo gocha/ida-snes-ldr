@@ -92,7 +92,7 @@ static void map_hirom_sram(uint32 ram_size)
 }
 
 //----------------------------------------------------------------------------
-static void map_superfxrom_sram(uint32 ram_size)
+static void map_superfx_sram(uint32 ram_size)
 {
   // create ram banks 70-71
   const uint32 bank_size = 0x10000;
@@ -113,7 +113,7 @@ static void map_superfxrom_sram(uint32 ram_size)
 }
 
 //----------------------------------------------------------------------------
-static void map_superfxrom_workram()
+static void map_superfx_workram()
 {
   segment_t s;
   s.startEA = 0x6000;
@@ -128,13 +128,13 @@ static void map_superfxrom_workram()
 }
 
 //----------------------------------------------------------------------------
-static void map_superfxrom_hwregs()
+static void map_superfx_hwregs()
 {
   map_io_seg(0x3000, 0x3500, "superfx");
 }
 
 //----------------------------------------------------------------------------
-static void map_sa1rom_bwram(uint32 ram_size)
+static void map_sa1_bwram(uint32 ram_size)
 {
   // create ram banks 40-41
   const uint32 bank_size = 0x10000;
@@ -155,7 +155,7 @@ static void map_sa1rom_bwram(uint32 ram_size)
 }
 
 //----------------------------------------------------------------------------
-static void map_sa1rom_iram()
+static void map_sa1_iram()
 {
   segment_t s;
   s.startEA = 0x3000;
@@ -170,9 +170,15 @@ static void map_sa1rom_iram()
 }
 
 //----------------------------------------------------------------------------
-static void map_sa1rom_hwregs()
+static void map_sa1_hwregs()
 {
   map_io_seg(0x2200, 0x2400, "sa1");
+}
+
+//----------------------------------------------------------------------------
+static void map_cx4_hwregs()
+{
+  map_io_seg(0x6000, 0x8000, "cx4");
 }
 
 //----------------------------------------------------------------------------
@@ -279,7 +285,7 @@ static sel_t map_exhirom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size
 }
 
 //----------------------------------------------------------------------------
-static sel_t map_superfxrom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
+static sel_t map_superfx(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
 {
   // map rom to banks 00-3f (LoROM layout)
   sel_t start_sel = map_lorom_offset(li, rom_start_in_file, qmin(rom_size, 0x200000), 0x00, 0);
@@ -291,7 +297,7 @@ static sel_t map_superfxrom(linput_t *li, uint32 rom_start_in_file, uint32 rom_s
 }
 
 //----------------------------------------------------------------------------
-static sel_t map_sa1rom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
+static sel_t map_sa1(linput_t *li, uint32 rom_start_in_file, uint32 rom_size)
 {
   // map rom to banks 00-3f (LoROM layout)
   sel_t start_sel = map_lorom_offset(li, rom_start_in_file, qmin(rom_size, 0x200000), 0x00, 0);
@@ -359,25 +365,37 @@ static sel_t map_exhirom_cartridge(linput_t *li, uint32 rom_start_in_file, uint3
 }
 
 //----------------------------------------------------------------------------
-static sel_t map_superfxrom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
+static sel_t map_superfx_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
-  sel_t start_sel = map_superfxrom(li, rom_start_in_file, rom_size);
+  sel_t start_sel = map_superfx(li, rom_start_in_file, rom_size);
 
-  map_superfxrom_sram(ram_size);
-  map_superfxrom_workram();
-  map_superfxrom_hwregs();
+  map_superfx_sram(ram_size);
+  map_superfx_workram();
+  map_superfx_hwregs();
 
   return start_sel;
 }
 
 //----------------------------------------------------------------------------
-static sel_t map_sa1rom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
+static sel_t map_sa1_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
-  sel_t start_sel = map_sa1rom(li, rom_start_in_file, rom_size);
+  sel_t start_sel = map_sa1(li, rom_start_in_file, rom_size);
 
-  map_sa1rom_bwram(ram_size);
-  map_sa1rom_iram();
-  map_sa1rom_hwregs();
+  map_sa1_bwram(ram_size);
+  map_sa1_iram();
+  map_sa1_hwregs();
+
+  return start_sel;
+}
+
+//----------------------------------------------------------------------------
+static sel_t map_cx4_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
+{
+  sel_t start_sel = map_lorom(li, rom_start_in_file, qmin(rom_size, 0x400000));
+
+  map_lorom_sram(ram_size, true);
+
+  map_cx4_hwregs();
 
   return start_sel;
 }
@@ -476,7 +494,11 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
 
   sel_t start_cs;
 
-  if ( cartridge.has_sdd1 )
+  if ( cartridge.has_cx4 )
+  {
+    start_cs = map_cx4_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+  }
+  else if ( cartridge.has_sdd1 )
   {
     start_cs = map_sdd1_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
   }
@@ -497,10 +519,10 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
         start_cs = map_exhirom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
         break;
       case SuperFamicomCartridge::SuperFXROM:
-        start_cs = map_superfxrom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+        start_cs = map_superfx_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
         break;
       case SuperFamicomCartridge::SA1ROM:
-        start_cs = map_sa1rom_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
+        start_cs = map_sa1_cartridge(li, start, cartridge.rom_size, cartridge.ram_size);
         break;
       default:
         loader_failure("Unsupported mapper: %s", cartridge.mapper_string());

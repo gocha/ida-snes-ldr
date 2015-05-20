@@ -38,6 +38,58 @@ static ea_t xlat_system(ea_t address, bool & dispatched)
 }
 
 //----------------------------------------------------------------------------
+// hitachidsp model=HG51B169 frequency=20000000
+//   rom id=program name=program.rom size=hex(rom_size)
+//   rom id=data name=cx4.data.rom size=0xc00
+//   ram id=data size=0xc00
+//   map id=io address=00-3f,80-bf:6000-7fff
+//   map id=rom address=00-7f,80-ff:8000-ffff mask=0x8000
+//   map id=ram address=70-77:0000-7fff
+static ea_t xlat_cx4(ea_t address, bool & dispatched)
+{
+  uint16 addr = address & 0xffff;
+  uint8 bank = (address >> 16) & 0xff;
+
+  dispatched = true;
+
+  // SRAM
+  if ( g_cartridge.ram_size != 0 )
+  {
+    if ( bank >= 0x70 && bank <= 0x77 )
+    {
+      if ( addr <= 0x7fff )
+      {
+        return address;
+      }
+    }
+  }
+
+  // mirror 00-7d => 80-fd (excluding SRAM)
+  if ( bank <= 0x7d )
+  {
+    address += 0x800000;
+    bank += 0x80;
+  }
+
+  if ( bank <= 0xbf )
+  {
+    if ( addr >= 0x8000 )
+    {
+      // ROM
+      return address;
+    }
+    else if ( addr >= 0x6000 && addr <= 0x7fff )
+    {
+      // C4 registers
+      return addr;
+    }
+  }
+
+  dispatched = false;
+  return address;
+}
+
+//----------------------------------------------------------------------------
 // sdd1
 //   rom name=program.rom size=hex(rom_size)
 //   ram name=save.ram size=hex(ram_size)
@@ -485,7 +537,13 @@ ea_t xlat(ea_t address)
   if ( dispatched )
     return remapped_address;
 
-  if ( g_cartridge.has_sdd1 )
+  if ( g_cartridge.has_cx4 )
+  {
+    remapped_address = xlat_cx4(address, dispatched);
+    if ( dispatched )
+      return remapped_address;
+  }
+  else if ( g_cartridge.has_sdd1 )
   {
     remapped_address = xlat_sdd1(address, dispatched);
     if ( dispatched )

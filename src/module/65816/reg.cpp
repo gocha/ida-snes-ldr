@@ -193,6 +193,9 @@ static int idaapi notify(processor_t::idp_notify msgid, ...)
           if ( cartridge.has_sa1 )
             set_device_name("sa1", IORESP_ALL);
 
+          if ( cartridge.has_cx4 )
+            set_device_name("cx4", IORESP_ALL);
+
           if ( cartridge.has_sdd1 )
             set_device_name("sdd1", IORESP_ALL);
 
