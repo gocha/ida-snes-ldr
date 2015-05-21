@@ -66,6 +66,9 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
 
   // PSRAM
   inf.start_cs = map_psram(li, 0x100);
+
+  info("You have just loaded a SNES SPC-700 sound file.\n\n"
+       "Please move to what you think is an entry point and press 'C' to start the auto analysis.");
 }
 
 //----------------------------------------------------------------------------
