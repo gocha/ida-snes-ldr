@@ -220,6 +220,60 @@ static int idaapi notify(processor_t::idp_notify msgid, ...) // Various messages
       }
       break;
 
+    case processor_t::may_be_func:
+      retcode = 0;
+      ea_t cref_addr;
+      for( cref_addr = get_first_cref_to(cmd.ea);
+           cref_addr != BADADDR;
+           cref_addr = get_next_cref_to(cmd.ea, cref_addr) )
+      {
+        uint8 opcode = get_byte(cref_addr);
+        const struct opcode_info_t &opinfo = get_opcode_info(opcode);
+        if ( opinfo.itype == SPC_call
+          || opinfo.itype == SPC_jmp )
+        {
+          retcode = 100;
+          break;
+        }
+      }
+      break;
+
+    case processor_t::is_call_insn:
+      {
+        const struct opcode_info_t &opinfo = get_opcode_info(get_byte(va_arg(va, ea_t)));
+        if ( opinfo.itype == SPC_call )
+          retcode = 2;
+        else
+          retcode = 0;
+      }
+      break;
+
+    case processor_t::is_ret_insn:
+      {
+        const struct opcode_info_t &opinfo = get_opcode_info(get_byte(va_arg(va, ea_t)));
+        if ( opinfo.itype == SPC_ret
+          || opinfo.itype == SPC_reti )
+          retcode = 2;
+        else
+          retcode = 0;
+      }
+      break;
+
+    case processor_t::is_indirect_jump:
+      {
+        const struct opcode_info_t &opinfo = get_opcode_info(get_byte(va_arg(va, ea_t)));
+        if ( opinfo.itype == SPC_jmp )
+        {
+          if ( opinfo.addr == ABS_IX_INDIR )
+            retcode = 3;
+          else
+            retcode = 2;
+        }
+        else
+          retcode = 1;
+      }
+      break;
+
     default:
       break;
   }
