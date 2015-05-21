@@ -540,10 +540,8 @@ static void add_interrupt_vector(uint16 addr, const char *name, bool make_code)
   if ( orig_vector_addr != 0 && orig_vector_addr != 0xffff )
   {
     // Set 'vector_addr' name to be 'name'
-    set_name(vector_addr, name, SN_NOCHECK);
-
-    // Set 'real_ea' as offset
-    op_offset(real_ea, OPND_MASK, REF_OFF16);
+    if ( !has_user_name(get_flags_novalue(vector_addr)) )
+      set_name(vector_addr, name, SN_NOCHECK);
 
     // Push the vector_addr into the autoanalysis queue.
     // Do not make use of auto_make_proc(), because some
@@ -551,9 +549,12 @@ static void add_interrupt_vector(uint16 addr, const char *name, bool make_code)
     // we'd break a procedure w/ inserting another
     // procedure right into the previous procedure's code.
     if ( make_code )
-    {
       auto_make_code(vector_addr);
-    }
+
+    // Set 'real_ea' as offset
+    refinfo_t ri;
+    ri.init(REF_OFF16, vector_addr - orig_vector_addr);
+    op_offset_ex(real_ea, OPND_MASK, &ri);
 
     set_cmt(real_ea, name, false);
   }
@@ -668,22 +669,31 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
   uint16 start_pc = get_word(reset_vector_loc);
   ea_t start_address = xlat(start_pc);
   inf.startIP  = start_address & 0xffff;
-  add_interrupt_vector(0xfffc, "Emulation-mode RESET", true);
 
+  // ------- Most important vectors
   // http://en.wikibooks.org/wiki/Super_NES_Programming/SNES_memory_map
+  add_interrupt_vector(0xfffc, "Emulation-mode RESET", true);
+  add_interrupt_vector(0xffea, "Native-mode NMI", true);
+  add_interrupt_vector(0xffee, "Native-mode IRQ", true);
+  add_interrupt_vector(0xfffe, "Emulation-mode IRQ", true);
+
+  // ------- Native-mode vectors
+  add_interrupt_vector(0xffe4, "Native-mode COP", false);
+  add_interrupt_vector(0xffe6, "Native-mode BRK", false);
+  add_interrupt_vector(0xffe8, "Native-mode ABORT", false);
+  add_interrupt_vector(0xffec, "Native-mode RESET", false);
+
   // ------- Emulation-mode vectors
   add_interrupt_vector(0xfff4, "Emulation-mode COP", false);
   add_interrupt_vector(0xfff8, "Emulation-mode ABORT", false);
   add_interrupt_vector(0xfffa, "Emulation-mode NMI", false);
-  add_interrupt_vector(0xfffe, "Emulation-mode IRQ", false);
 
-  // ------- Native-mode vectors --------
-  add_interrupt_vector(0xffe4, "Native-mode COP", false);
-  add_interrupt_vector(0xffe6, "Native-mode BRK", false);
-  add_interrupt_vector(0xffe8, "Native-mode ABORT", false);
-  add_interrupt_vector(0xffea, "Native-mode NMI", true);
-  add_interrupt_vector(0xffec, "Native-mode RESET", false);
-  add_interrupt_vector(0xffee, "Native-mode IRQ", false);
+  // ------- Undefined vectors
+  doWord(xlat(0xffe0), 2);
+  doWord(xlat(0xffe2), 2);
+  doWord(xlat(0xfff0), 2);
+  doWord(xlat(0xfff2), 2);
+  doWord(xlat(0xfff6), 2);
 
   // Header info
   ea_t header = xlat(0xffc0);
