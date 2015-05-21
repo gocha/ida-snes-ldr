@@ -18,7 +18,7 @@ static void map_io_seg(ea_t start, ea_t end, const char *const name)
 //----------------------------------------------------------------------------
 static void map_hwregs()
 {
-  map_io_seg(0x2100, 0x2140, "gpu");
+  map_io_seg(0x2100, 0x2140, "ppu");
   map_io_seg(0x2140, 0x2144, "apu");
   map_io_seg(0x2180, 0x2184, "wramrw");
   map_io_seg(0x4016, 0x4018, "joypad");
