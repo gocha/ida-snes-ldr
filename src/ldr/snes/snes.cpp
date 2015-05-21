@@ -699,6 +699,25 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
   ea_t header = xlat(0xffc0);
   set_name(header, "snes_header");
   make_ascii_string(header, 21, ASCSTR_C);
+  set_cmt(header, "Game Title", false);
+  doByte(header + 0x15, 1);
+  set_cmt(header + 0x15, "ROM Makeup / ROM Speed and Map Mode", false);
+  doByte(header + 0x16, 1);
+  set_cmt(header + 0x16, "Chipset", false);
+  doByte(header + 0x17, 1);
+  set_cmt(header + 0x17, "ROM Size", false);
+  doByte(header + 0x18, 1);
+  set_cmt(header + 0x18, "RAM Size", false);
+  doByte(header + 0x19, 1);
+  set_cmt(header + 0x19, "Country", false);
+  doByte(header + 0x1a, 1);
+  set_cmt(header + 0x1a, "Developer ID", false);
+  doByte(header + 0x1b, 1);
+  set_cmt(header + 0x1b, "ROM Version", false);
+  doWord(header + 0x1c, 2);
+  set_cmt(header + 0x1c, "Checksum Complement", false);
+  doWord(header + 0x1e, 2);
+  set_cmt(header + 0x1e, "Checksum", false);
 }
 
 //----------------------------------------------------------------------------
