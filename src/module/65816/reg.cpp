@@ -18,13 +18,14 @@ static const char *const RegNames[] =
   "cs",
   "ds",
 
-  "PB", // Program bank
   "B",  // Data bank
   "D",  // Direct page register (used?)
 
   "m", // Holds accumulator-is-8-bits flag
   "x", // Holds indices-are-8-bits flag
-  "e"  // Holds emulation mode flag
+  "e", // Holds emulation mode flag
+
+  "PB" // Program bank
 };
 
 
@@ -163,15 +164,21 @@ static int idaapi notify(processor_t::idp_notify msgid, ...)
 
         // read rommode_t for backward compatibility
         nodeidx_t mode = helper.hashval_long("rommode_t");
-        switch ( mode )
+        if ( mode != 0 )
         {
-          case 0x20:
-            cartridge.mapper = SuperFamicomCartridge::LoROM;
-            break;
+            switch ( mode )
+            {
+              case 0x20:
+                cartridge.mapper = SuperFamicomCartridge::LoROM;
+                break;
 
-          case 0x21:
-            cartridge.mapper = SuperFamicomCartridge::HiROM;
-            break;
+              case 0x21:
+                cartridge.mapper = SuperFamicomCartridge::HiROM;
+                break;
+            }
+
+            helper.hashdel("rommode_t");
+            cartridge.write_hash(helper);
         }
 
         if ( !addr_init(cartridge) )
@@ -629,7 +636,7 @@ processor_t LPH =
   NULL,                         // Pointer to CPU registers
 
   rCs,                          // first segreg
-  rFe,                          // last  segreg
+  rPB,                          // last  segreg
   0,                            // size of a segment register
   rCs,                          // number of CS register
   rDs,                          // number of DS register

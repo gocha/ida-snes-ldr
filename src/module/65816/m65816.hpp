@@ -38,9 +38,6 @@ enum M65816_registers {
   rCs,  // code segment
   rDs,  // data segment
 
-  // program bank register
-  rPB,
-
   // This will hold the value of B, the
   // data bank register. We won't make use of Ds
   // directly, as it is typically used, in computation,
@@ -66,7 +63,10 @@ enum M65816_registers {
   // we run in 6502 emulation or 65816 native mode.
   rFm,
   rFx,
-  rFe
+  rFe,
+
+  // program bank register
+  rPB
 };
 
 
