@@ -16,7 +16,7 @@ instruc_t Instructions[] = {
 { "BNE",        CF_USE1                         },      // if Z=0, PC = PC + offset
 { "BPL",        CF_USE1                         },      // if N=0, PC = PC + offset
 { "BRA",        CF_USE1|CF_STOP                 },      // Branch always
-{ "BRK",        CF_STOP                         },      // Stack <- PC, PC <- ($fffe)
+{ "BRK",        0                               },      // Stack <- PC, PC <- ($fffe)  NOTE: Usually it stops the processor. However, some games (e.g. Dragon Quest VI) use BRK as a customized opcode, by overriding the behavior through the interrupt vector.
 { "BRL",        CF_USE1|CF_STOP                 },      // Branch always long
 { "BVC",        CF_USE1                         },      // if V=0, PC = PC + offset
 { "BVS",        CF_USE1                         },      // if V=1, PC = PC + offset
