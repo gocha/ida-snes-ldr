@@ -87,13 +87,16 @@ static void out_addr_far(op_t &x)
 //----------------------------------------------------------------------
 void print_orig_ea(const op_t &x)
 {
-  char buf[64];
-  qsnprintf(buf, sizeof(buf),
-            COLSTR(" %s orig=0x%0*a", SCOLOR_AUTOCMT),
-            ash.cmnt,
-            (x.type == o_far || x.type == o_mem_far) ? 6 : 4,
-            x.addr);
-  OutLine(buf);
+  if ( !has_cmt(get_flags_novalue(cmd.ea)) )
+  {
+    char buf[64];
+    qsnprintf(buf, sizeof(buf),
+              COLSTR(" %s orig=0x%0*a", SCOLOR_AUTOCMT),
+              ash.cmnt,
+              (x.type == o_far || x.type == o_mem_far) ? 6 : 4,
+              x.addr);
+    OutLine(buf);
+  }
 }
 
 //----------------------------------------------------------------------
