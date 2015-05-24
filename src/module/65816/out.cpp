@@ -18,7 +18,7 @@ void print_orig_ea(const op_t &x)
   qsnprintf(buf, sizeof(buf),
             COLSTR(" %s orig=0x%0*a", SCOLOR_AUTOCMT),
             ash.cmnt,
-            x.type == o_far ? 6 : 4,
+            (x.type == o_far || x.type == o_mem_far) ? 6 : 4,
             x.addr);
   OutLine(buf);
 }
@@ -33,6 +33,7 @@ ea_t calc_addr(const op_t &x, ea_t *orig_ea)
       ea = toEA(codeSeg(x.addr, x.n), x.addr);
       goto XLAT_ADDR;
     case o_far:
+    case o_mem_far:
       ea = x.addr;
       goto XLAT_ADDR;
     case o_mem:
@@ -62,13 +63,14 @@ bool idaapi outop(op_t &x)
     case o_near:
     case o_far:
     case o_mem:
+    case o_mem_far:
       if ( cmd.indirect )
         out_symbol('(');
       ea = calc_addr(x, &orig_ea);
       if ( !out_name_expr(x, ea, BADADDR) )
       {
         uint32 v = x.addr;
-        if ( x.type == o_far )
+        if ( x.type == o_far || x.type == o_mem_far )
           v &= 0xFFFFFF;
         else
           v &= 0xFFFF;

@@ -447,7 +447,7 @@ int idaapi ana(void)
       }
       break;
     case ABS_LONG:
-      cmd.Op1.type = o_far;
+      cmd.Op1.type = o_mem_far;
       cmd.Op1.addr = ua_next_word();
       cmd.Op1.addr|= ua_next_byte() << 16;
       cmd.Op1.full_target_ea = cmd.Op1.addr;

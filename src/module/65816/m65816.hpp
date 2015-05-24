@@ -7,6 +7,9 @@
 #include "ins.hpp"
 
 
+// Direct Memory Reference with full-length address
+#define o_mem_far       o_idpspec0
+
 // If there is an address in 'Op[N].full_target_ea',
 // it means the target address of a branch/jump
 // is already known. That's there to help the 'emu'
