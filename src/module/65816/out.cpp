@@ -12,6 +12,79 @@
 #include "bt.hpp"
 
 //----------------------------------------------------------------------
+static void out_dp(op_t &x)
+{
+  sel_t dp = get_segreg(cmd.ea, rD);
+  if ( dp != BADSEL )
+  {
+    ea_t orig_ea = dp + x.addr;
+    ea_t ea = xlat(orig_ea);
+
+    if ( dp != 0 )
+      out_symbol('(');
+
+    if ( !out_name_expr(x, ea, BADADDR) )
+    {
+      out_tagon(COLOR_ERROR);
+      OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+      out_tagoff(COLOR_ERROR);
+      QueueSet(Q_noName, cmd.ea);
+    }
+
+    if ( dp != 0 )
+    {
+      out_symbol(' ');
+      out_symbol('-');
+      out_symbol(' ');
+      OutLong(dp << 8, 16);
+      out_symbol(')');
+    }
+  }
+  else
+  {
+    OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+  }
+}
+
+//----------------------------------------------------------------------
+static void out_addr_near(op_t &x)
+{
+  sel_t db = get_segreg(cmd.ea, rB);
+  if ( db != BADSEL )
+  {
+    ea_t orig_ea = (db << 16) + x.addr;
+    ea_t ea = xlat(orig_ea);
+
+    if ( !out_name_expr(x, ea, BADADDR) )
+    {
+      out_tagon(COLOR_ERROR);
+      OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
+      out_tagoff(COLOR_ERROR);
+      QueueSet(Q_noName, cmd.ea);
+    }
+  }
+  else
+  {
+    OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
+  }
+}
+
+//----------------------------------------------------------------------
+static void out_addr_far(op_t &x)
+{
+  ea_t orig_ea = x.addr;
+  ea_t ea = xlat(orig_ea);
+
+  if ( !out_name_expr(x, ea, BADADDR) )
+  {
+    out_tagon(COLOR_ERROR);
+    OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_24);
+    out_tagoff(COLOR_ERROR);
+    QueueSet(Q_noName, cmd.ea);
+  }
+}
+
+//----------------------------------------------------------------------
 void print_orig_ea(const op_t &x)
 {
   char buf[64];
@@ -62,15 +135,13 @@ bool idaapi outop(op_t &x)
       break;
     case o_near:
     case o_far:
-    case o_mem:
-    case o_mem_far:
       if ( cmd.indirect )
         out_symbol('(');
       ea = calc_addr(x, &orig_ea);
       if ( !out_name_expr(x, ea, BADADDR) )
       {
         uint32 v = x.addr;
-        if ( x.type == o_far || x.type == o_mem_far )
+        if ( x.type == o_far )
           v &= 0xFFFFFF;
         else
           v &= 0xFFFF;
@@ -82,44 +153,50 @@ bool idaapi outop(op_t &x)
       if ( cmd.indirect )
         out_symbol(')');
       if ( orig_ea != ea )
-      {
         print_orig_ea(x);
+      break;
+    case o_mem:
+    case o_mem_far:
+      {
+        if ( cmd.indirect )
+          out_symbol('(');
+
+        if ( x.type == o_mem_far )
+        {
+          ea = calc_addr(x, &orig_ea);
+          out_addr_far(x);
+        }
+        else
+        {
+          sel_t db = get_segreg(cmd.ea, rB);
+          if ( db == BADSEL )
+            ea = orig_ea = x.addr;
+          else
+            ea = calc_addr(x, &orig_ea);
+          out_addr_near(x);
+        }
+
+        if ( cmd.indirect )
+          out_symbol(')');
+
+        if ( orig_ea != ea )
+          print_orig_ea(x);
       }
       break;
     case o_displ:
       switch ( x.phrase )
       {
         case rS:
+          out_register(ph.regNames[x.phrase]);
+          out_symbol(',');
+          OutChar(' ');
+          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          break;
         case rD:
           out_register(ph.regNames[x.phrase]);
           out_symbol(',');
           OutChar(' ');
-          if ( x.phrase == rD )
-          {
-            int32 val = backtrack_value(cmd.ea, 2, BT_DP);
-            if ( val != -1 )
-            {
-              ea_t orig_ea = val + cmd.Op1.addr;
-              ea_t ea = xlat(orig_ea);
-
-              out_symbol('(');
-              if ( !out_name_expr(x, ea, BADADDR) )
-                OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
-              OutChar(' ');
-              out_symbol('-');
-              OutChar(' ');
-              OutLong(ea & ~0xff, 16);
-              out_symbol(')');
-            }
-            else
-            {
-              OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
-            }
-          }
-          else
-          {
-            OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
-          }
+          out_dp(x);
           break;
         case rSiY:
           out_symbol('(');
@@ -138,7 +215,7 @@ bool idaapi outop(op_t &x)
           out_register("D");
           out_symbol(',');
           OutChar(' ');
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          out_dp(x);
           out_symbol(')');
           break;
         case rDiL:
@@ -146,7 +223,7 @@ bool idaapi outop(op_t &x)
           out_register("D");
           out_symbol(',');
           OutChar(' ');
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          out_dp(x);
           out_symbol(']');
           break;
         case rDX:
@@ -154,7 +231,7 @@ bool idaapi outop(op_t &x)
           out_register("D");
           out_symbol(',');
           OutChar(' ');
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          out_dp(x);
           out_symbol(',');
           OutChar(' ');
           out_register((x.phrase == rDX) ? "X" : "Y");
@@ -164,7 +241,7 @@ bool idaapi outop(op_t &x)
           out_register("D");
           out_symbol(',');
           OutChar(' ');
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          out_dp(x);
           out_symbol(',');
           OutChar(' ');
           out_register("X");
@@ -176,7 +253,7 @@ bool idaapi outop(op_t &x)
           out_register("D");
           out_symbol(',');
           OutChar(' ');
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_8);
+          out_dp(x);
           out_symbol(x.phrase == rDiLY ? ']' : ')');
           out_symbol(',');
           OutChar(' ');
@@ -184,28 +261,27 @@ bool idaapi outop(op_t &x)
           break;
         case rAbsi:
           out_symbol('(');
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
+          out_addr_near(x);
           out_symbol(')');
           break;
         case rAbsiL:
           out_symbol('[');
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
+          out_addr_near(x);
           out_symbol(']');
           break;
         case rAbsX:
         case rAbsY:
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_24);
+          out_addr_near(x);
           out_symbol(',');
           OutChar(' ');
           out_register(x.phrase == rAbsY ? "Y" : "X");
           break;
         case rAbsLX:
           {
-            ea_t orig_ea = cmd.Op1.addr;
+            ea_t orig_ea = x.addr;
             ea_t ea = xlat(orig_ea);
 
-            if (!out_name_expr(x, ea, BADADDR))
-              OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_24);
+            out_addr_far(x);
             out_symbol(',');
             OutChar(' ');
             out_register("X");
@@ -218,7 +294,7 @@ bool idaapi outop(op_t &x)
           break;
         case rAbsXi:
           out_symbol('(');
-          OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
+          out_addr_near(x);
           out_symbol(',');
           OutChar(' ');
           out_register("X");
@@ -273,7 +349,10 @@ void idaapi assumes(ea_t ea)
       {
         if ( ptr != buf )
           APPCHAR(ptr, end, ' ');
-        ptr += qsnprintf(ptr, end-ptr, "%s=%a", ph.regNames[reg], curval);
+        if ( curval == BADSEL && ( reg == rD || reg == rB || reg == rPB ) )
+          ptr += qsnprintf(ptr, end-ptr, "%s=%d", ph.regNames[reg], curval);
+        else
+          ptr += qsnprintf(ptr, end-ptr, "%s=%a", ph.regNames[reg], curval);
       }
     }
   }

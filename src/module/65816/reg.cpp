@@ -281,7 +281,10 @@ static int idaapi notify(processor_t::idp_notify msgid, ...)
         if ( regnum == rB )
         {
 //        sel_t d2 = va_arg(va, sel_t); qnotused(d2);
-          split_srarea(startEA, rDs, value << 12, SR_auto);
+          if ( value == BADSEL )
+            split_srarea(startEA, rDs, BADSEL, SR_auto);
+          else
+            split_srarea(startEA, rDs, value << 12, SR_auto);
         }
         else if ( regnum == rPB )
         {

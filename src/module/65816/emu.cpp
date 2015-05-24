@@ -24,19 +24,59 @@ static void handle_operand(op_t &x, bool read_access)
     case o_imm:
       QASSERT(557, read_access);
       dreftype = dr_O;
-      goto MAKE_IMMD;
-
-    case o_displ:
-      dreftype = read_access ? dr_R : dr_W;
 MAKE_IMMD:
       doImmdValue();
       if ( isOff(uFlag, x.n) )
         ua_add_off_drefs(x, dreftype);
       break;
 
+    case o_displ:
+      dreftype = read_access ? dr_R : dr_W;
+      switch ( x.phrase )
+      {
+        case rD:        // "dp"
+        case rDX:       // "dp, X"
+        case rDY:       // "dp, Y"
+        case riDX:      // "(dp, X)"
+        case rDi:       // "(dp,n)"
+        case rDiL:      // "long(dp,n)"
+        case rDiY:      // "(dp,n), Y"
+        case rDiLY:     // "long(dp,n), Y"
+          {
+            sel_t dp = get_segreg(cmd.ea, rD);
+            if ( dp != BADSEL )
+            {
+              ea_t orig_ea = dp + x.addr;
+              ea = xlat(orig_ea);
+              goto MAKE_DREF;
+            }
+            else
+            {
+              goto MAKE_IMMD;
+            }
+          }
+
+        case rAbsi:     // "(abs)"
+        case rAbsX:     // "abs, X"
+        case rAbsY:     // "abs, Y"
+        case rAbsXi:    // "(abs,X)"
+        case rAbsiL:    // "long(abs)"
+          ea = toEA(dataSeg_op(x.n), x.addr);
+          goto MAKE_DREF;
+
+        case rAbsLX:    // "long abs, X"
+          ea = x.addr;
+          goto MAKE_DREF;
+
+        default:
+          goto MAKE_IMMD;
+      }
+      break;
+
     case o_mem:
     case o_mem_far:
       ea = calc_addr(x);
+MAKE_DREF:
       ua_dodata2(x.offb, ea, x.dtyp);
       if ( !read_access )
         doVar(ea);
@@ -110,6 +150,14 @@ int idaapi emu(void)
   uint8 code = get_byte(cmd.ea);
   const struct opcode_info_t &opinfo = get_opcode_info(code);
 
+  if ( opinfo.itype == M65816_jmp || opinfo.itype == M65816_jsr )
+  {
+    if ( opinfo.addr == ABS_INDIR || opinfo.addr == ABS_INDIR_LONG || opinfo.addr == ABS_IX_INDIR ) {
+      QueueSet(Q_jumps,cmd.ea);
+    }
+  }
+
+#if 0
   switch ( opinfo.addr )
   {
     case ABS_LONG_IX:
@@ -153,6 +201,7 @@ int idaapi emu(void)
       }
       break;
   }
+#endif
 
   switch ( cmd.itype )
   {
