@@ -18,8 +18,8 @@ static void out_dp(op_t &x)
   {
     ea_t ea = (dp << 8) | x.addr;
 
-    if ( dp != 0 )
-      out_symbol('(');
+    //if ( dp != 0 )
+    //  out_symbol('(');
 
     if ( !out_name_expr(x, ea, BADADDR) )
     {
@@ -29,14 +29,14 @@ static void out_dp(op_t &x)
       QueueSet(Q_noName, cmd.ea);
     }
 
-    if ( dp != 0 )
-    {
-      out_symbol(' ');
-      out_symbol('-');
-      out_symbol(' ');
-      OutLong(dp << 8, 16);
-      out_symbol(')');
-    }
+    //if ( dp != 0 )
+    //{
+    //  out_symbol(' ');
+    //  out_symbol('-');
+    //  out_symbol(' ');
+    //  OutLong(dp << 8, 16);
+    //  out_symbol(')');
+    //}
   }
   else
   {
