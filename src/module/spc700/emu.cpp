@@ -121,76 +121,7 @@ MAKE_CREF:
 // Note: sometimes the real table is located at another address (e.g. Super Mario World)
 static void handle_jump_table(ea_t jtable_addr)
 {
-  asize_t jtable_size = 0;
-
-  // guess jump table size
-  // TODO: more elegant jump table handling?
-  bool is_first_elem = true;
-  ea_t jtable_dest_min;
-  ea_t jtable_dest_max;
-  ea_t jtable_elem_boundary = 0x10000;
-  for (asize_t elem_n = 0; elem_n < 128; elem_n++)
-  {
-    ea_t elem_addr = jtable_addr + elem_n * 2;
-    if ( elem_addr >= 0x10000 )
-      break;
-
-    ea_t dest = get_word(elem_addr);
-    if ( is_first_elem )
-    {
-      jtable_dest_min = dest;
-      jtable_dest_max = dest;
-
-      if ( dest >= jtable_addr )
-        jtable_elem_boundary = dest;
-
-      is_first_elem = false;
-    }
-    else
-    {
-      // address is already pointed by the table - out of bounds
-      if ( elem_addr >= jtable_elem_boundary )
-        break;
-
-      // assumption: addresses must be close each other
-      const uint16 distance_threshold = 0x800;
-      if ( ( jtable_dest_min >= distance_threshold && dest < jtable_dest_min - distance_threshold )
-        || dest > jtable_dest_max + distance_threshold )
-        break;
-
-      // assumption: code must not be in page 0
-      if ( dest <= 0xff )
-      {
-        jtable_size = 0;
-        break;
-      }
-
-      // update boundaries
-      if ( jtable_dest_min > dest )
-        jtable_dest_min = dest;
-      if ( jtable_dest_max < dest )
-        jtable_dest_max = dest;
-      if ( dest >= jtable_addr && jtable_elem_boundary > dest )
-        jtable_elem_boundary = dest;
-    }
-
-    jtable_size++;
-  }
-
-  // check table size (very short tables could be a false-positive)
-  if ( jtable_size >= 3 )
-  {
-    // mark each offsets
-    doWord(jtable_addr, 2 * jtable_size);
-    for (asize_t elem_n = 0; elem_n < jtable_size; elem_n++)
-    {
-      ea_t elem_addr = jtable_addr + elem_n * 2;
-      ea_t dest = get_word(elem_addr);
-
-      auto_make_code(dest);
-      op_offset(elem_addr, 0, REF_OFF16);
-    }
-  }
+  // TODO: mark jump table
 }
 
 //----------------------------------------------------------------------
