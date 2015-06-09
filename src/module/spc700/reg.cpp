@@ -327,8 +327,7 @@ static const bytes_t retcodes[] =
 //      Processor Definition
 //-----------------------------------------------------------------------
 
-// TODO: PLFM ID?
-#define PLFM_SPC700	PLFM_6502
+#define PLFM_SPC700	0x816A
 
 processor_t LPH =
 {
