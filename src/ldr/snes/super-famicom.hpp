@@ -1,8 +1,31 @@
+/*
+SPECIAL LICENSE AGREEMENT
+
+This file originally comes from the 'higan' emulator
+<http://byuu.org/emulation/higan/>, and should normally only be
+used in agreement with the terms of the GPLv3 license.
+
+Hex-Rays has been granted, by written consent of its author, the use
+of this file within the scope of the 'snes' loader plugin for the
+Interactive DisAssembler (IDA), without requiring Hex-Rays to release
+any other source code that composes the Interactive DisAssembler (or
+any of its plugins.)
+This special license agreement extends to anyone who may want to
+modify, re-compile & re-link the 'snes' loader.
+
+The stated agreement stands only for use of this file within the
+'snes' loader plugin for the Interactive DisAssembler, and cannot
+be applied to any other project (other Interactive DisAssembler
+plugin, or unrelated project.)
+
+Should this file be included in another project than the 'snes' loader
+for the Interactive DisAssembler, the original GPLv3 licensing terms
+will apply.
+*/
 
 // This file is included from the loader module and the processor module
 
-// original source: higan/ananke/heuristics/super-famicom.hpp written by byuu
-// adapted for IDA Pro
+// original source: higan/ananke/heuristics/super-famicom.hpp
 
 #ifndef __SUPER_FAMICOM_HPP__
 #define __SUPER_FAMICOM_HPP__
