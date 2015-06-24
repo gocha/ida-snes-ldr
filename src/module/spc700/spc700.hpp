@@ -47,6 +47,7 @@ enum SPC_registers {
   // but we'll actually use them to keep information
   // about the 'p' flags, determining the direct page address.
   rFp,
+  rLast
 };
 
 

@@ -281,19 +281,17 @@ bool idaapi outop(op_t &x)
           break;
         case rAbsLX:
           {
-            ea_t orig_ea = x.addr;
-            ea_t ea = xlat(orig_ea);
+            ea_t lorig_ea = x.addr;
+            ea_t lea = xlat(lorig_ea);
 
             out_addr_far(x);
             out_symbol(',');
             OutChar(' ');
             out_register("X");
 
-            if ( orig_ea != ea )
-            {
+            if ( lorig_ea != lea )
               print_orig_ea(x);
             }
-          }
           break;
         case rAbsXi:
           out_symbol('(');

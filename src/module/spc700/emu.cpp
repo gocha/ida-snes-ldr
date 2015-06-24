@@ -119,7 +119,7 @@ MAKE_CREF:
 //----------------------------------------------------------------------
 // Mark the jump table content as a offset, and mark the destination address as code
 // Note: sometimes the real table is located at another address (e.g. Super Mario World)
-static void handle_jump_table(ea_t jtable_addr)
+static void handle_jump_table(ea_t /*jtable_addr*/)
 {
   // TODO: mark jump table
 }
@@ -167,7 +167,6 @@ int idaapi emu(void)
         if ( cmd.Op1.full_target_ea )
         {
           ea_t ftea = cmd.Op1.full_target_ea;
-
           split_srarea(ftea, rFp,  get_segreg(cmd.ea, rFp),  SR_auto);
         }
       }

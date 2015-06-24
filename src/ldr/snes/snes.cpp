@@ -43,7 +43,7 @@ static void map_wram()
 }
 
 //----------------------------------------------------------------------------
-static void map_lorom_sram_offset(uint32 ram_size, uint8 start_bank, bool preserve_rom_mirror)
+static void map_lorom_sram_offset(uint32 ram_size, uint8 start_bank)
 {
   // Usually, the lower half of bank (0x8000 bytes) is SRAM, and the upper half is ROM mirror.
   // However, some cartridges maps the whole of bank (0x10000 bytes) to SRAM.
@@ -92,10 +92,10 @@ static void map_hirom_sram_offset(uint32 ram_size, uint8 start_bank)
 }
 
 //----------------------------------------------------------------------------
-static void map_lorom_sram(uint32 ram_size, bool preserve_rom_mirror)
+static void map_lorom_sram(uint32 ram_size)
 {
   // create ram banks 70-7d (and fe-ff)
-  map_lorom_sram_offset(ram_size, 0x70, preserve_rom_mirror);
+  map_lorom_sram_offset(ram_size, 0x70);
 }
 
 //----------------------------------------------------------------------------
@@ -345,10 +345,7 @@ static sel_t map_sdd1rom(linput_t *li, uint32 rom_start_in_file, uint32 rom_size
 static sel_t map_lorom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
   sel_t start_sel = map_lorom(li, rom_start_in_file, qmin(rom_size, 0x400000));
-
-  bool preserve_rom_mirror = (rom_size > 0x200000) || (ram_size > 32 * 1024);
-  map_lorom_sram(ram_size, preserve_rom_mirror);
-
+  map_lorom_sram(ram_size);
   return start_sel;
 }
 
@@ -356,9 +353,7 @@ static sel_t map_lorom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 
 static sel_t map_hirom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
   sel_t start_sel = map_hirom(li, rom_start_in_file, qmin(rom_size, 0x400000));
-
   map_hirom_sram(ram_size);
-
   return start_sel;
 }
 
@@ -367,11 +362,8 @@ static sel_t map_exlorom_cartridge(linput_t *li, uint32 rom_start_in_file, uint3
 {
   // S-DD1 cartridge should be handled by map_sdd1_cartridge
   sel_t start_sel = map_lorom_offset(li, rom_start_in_file, qmin(rom_size, 0x200000), 0x80, 0);
-
   map_hirom_offset(li, rom_start_in_file, qmin(rom_size, 0x400000), 0x40, 0);
-
-  map_lorom_sram(ram_size, true);
-
+  map_lorom_sram(ram_size);
   return start_sel;
 }
 
@@ -379,9 +371,7 @@ static sel_t map_exlorom_cartridge(linput_t *li, uint32 rom_start_in_file, uint3
 static sel_t map_exhirom_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
   sel_t start_sel = map_exhirom(li, rom_start_in_file, rom_size);
-
   map_hirom_sram(ram_size);
-
   return start_sel;
 }
 
@@ -389,11 +379,9 @@ static sel_t map_exhirom_cartridge(linput_t *li, uint32 rom_start_in_file, uint3
 static sel_t map_superfx_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
   sel_t start_sel = map_superfx(li, rom_start_in_file, rom_size);
-
   map_superfx_sram(ram_size);
   map_superfx_workram();
   map_superfx_hwregs();
-
   return start_sel;
 }
 
@@ -401,11 +389,9 @@ static sel_t map_superfx_cartridge(linput_t *li, uint32 rom_start_in_file, uint3
 static sel_t map_sa1_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
   sel_t start_sel = map_sa1(li, rom_start_in_file, rom_size);
-
   map_sa1_bwram(ram_size);
   map_sa1_iram();
   map_sa1_hwregs();
-
   return start_sel;
 }
 
@@ -413,11 +399,8 @@ static sel_t map_sa1_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 ro
 static sel_t map_cx4_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
   sel_t start_sel = map_lorom(li, rom_start_in_file, qmin(rom_size, 0x400000));
-
-  map_lorom_sram(ram_size, true);
-
+  map_lorom_sram(ram_size);
   map_cx4_hwregs();
-
   return start_sel;
 }
 
@@ -425,12 +408,9 @@ static sel_t map_cx4_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 ro
 static sel_t map_spc7110_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
   sel_t start_sel = map_hirom_offset(li, rom_start_in_file, qmin(rom_size, 0x100000), 0xc0, 0);
-
   // create ram banks 00-3f
   map_hirom_sram_offset(ram_size, 0x00);
-
   map_spc7110_hwregs();
-
   return start_sel;
 }
 
@@ -438,10 +418,8 @@ static sel_t map_spc7110_cartridge(linput_t *li, uint32 rom_start_in_file, uint3
 static sel_t map_sdd1_cartridge(linput_t *li, uint32 rom_start_in_file, uint32 rom_size, uint32 ram_size)
 {
   sel_t start_sel = map_sdd1rom(li, rom_start_in_file, rom_size);
-
-  map_lorom_sram(ram_size, true);
+  map_lorom_sram(ram_size);
   map_sdd1_hwregs();
-
   return start_sel;
 }
 
@@ -464,7 +442,7 @@ static void map_obc1()
 }
 
 //----------------------------------------------------------------------------
-static void map_dsp1(SuperFamicomCartridge::DSP1MemoryMapper dsp1_mapper)
+static void map_dsp1(SuperFamicomCartridge::DSP1MemoryMapper /*dsp1_mapper*/)
 {
   // TODO: Add DSP-1 registers
 }
@@ -574,7 +552,6 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
   set_processor_type("m65816", SETPROC_ALL|SETPROC_FATAL);
 
   SuperFamicomCartridge cartridge(li);
-  //cartridge.print();
 
   // Determine whether ROM has a header
   int32 start = cartridge.has_copier_header ? 512 : 0;

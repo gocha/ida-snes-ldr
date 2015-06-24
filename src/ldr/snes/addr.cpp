@@ -17,7 +17,7 @@ static ea_t xlat_system(ea_t address, bool & dispatched)
   if ( bank >= 0x7e && bank <= 0x7f )
     return address;
 
-  if ( ( bank >= 0x00 && bank <= 0x3f ) || ( bank >= 0x80 && bank <= 0xbf ) )
+  if ( bank <= 0x3f || ( bank >= 0x80 && bank <= 0xbf ) )
   {
     if ( addr <= 0x1fff ) // Low RAM
       return 0x7e0000 + addr;
@@ -53,16 +53,13 @@ static ea_t xlat_cx4(ea_t address, bool & dispatched)
   dispatched = true;
 
   // SRAM
-  if ( g_cartridge.ram_size != 0 )
-  {
-    if ( bank >= 0x70 && bank <= 0x77 )
-    {
-      if ( addr <= 0x7fff )
+  if ( g_cartridge.ram_size != 0
+    && bank >= 0x70
+    && bank <= 0x77
+    && addr <= 0x7fff )
       {
         return address;
       }
-    }
-  }
 
   // mirror 00-7d => 80-fd (excluding SRAM)
   if ( bank <= 0x7d )
@@ -109,7 +106,7 @@ static ea_t xlat_spc7110(ea_t address, bool & dispatched)
   // SRAM
   if ( g_cartridge.ram_size != 0 )
   {
-    if ( ( bank >= 0x00 && bank <= 0x3f ) || ( bank >= 0x80 && bank <= 0xbf ) )
+    if ( bank <= 0x3f || ( bank >= 0x80 && bank <= 0xbf ) )
     {
       if ( addr >= 0x6000 && addr <= 0x7fff )
       {
@@ -208,7 +205,7 @@ static ea_t xlat_sdd1(ea_t address, bool & dispatched)
       return addr;
     }
   }
-  else if ( bank >= 0xc0 && bank <= 0xff )
+  else if ( bank >= 0xc0 )
   {
     // ROM (HiROM style)
     return address;
@@ -235,7 +232,7 @@ static ea_t xlat_lorom(ea_t address, bool & dispatched)
   {
     bool preserve_rom_mirror = (g_cartridge.rom_size > 0x200000) || (g_cartridge.ram_size > 32 * 1024);
 
-    if ( ( bank >= 0x70 && bank <= 0x7d ) || ( bank >= 0xf0 && bank <= 0xff ) )
+    if ( ( bank >= 0x70 && bank <= 0x7d ) || bank >= 0xf0 )
     {
       if ( addr <= 0x7fff || !preserve_rom_mirror )
       {
@@ -474,7 +471,7 @@ static ea_t xlat_superfxrom(ea_t address, bool & dispatched)
   // SuperFX RAM
   if ( g_cartridge.ram_size != 0 )
   {
-    if ( ( bank >= 0x00 && bank <= 0x3f ) || ( bank >= 0x80 && bank <= 0xbf ) )
+    if ( bank <= 0x3f || ( bank >= 0x80 && bank <= 0xbf ) )
     {
       if ( addr >= 0x6000 && addr <= 0x7fff )
       {
@@ -494,7 +491,7 @@ static ea_t xlat_superfxrom(ea_t address, bool & dispatched)
     // ROM (HiROM layout)
     return address;
   }
-  else if ( ( bank >= 0x00 && bank <= 0x3f ) || ( bank >= 0x80 && bank <= 0xbf ) )
+  else if ( bank <= 0x3f || ( bank >= 0x80 && bank <= 0xbf ) )
   {
     if ( addr >= 0x8000 )
     {
@@ -644,7 +641,7 @@ static ea_t xlat_obc1(ea_t address, bool & dispatched)
 // 
 // when DSP1HiROM:
 //   map id=io address=00-1f,80-9f:6000-7fff select=0x1000
-static ea_t xlat_dsp1(ea_t address, SuperFamicomCartridge::DSP1MemoryMapper dsp1_mapper, bool & dispatched)
+static ea_t xlat_dsp1(ea_t address, SuperFamicomCartridge::DSP1MemoryMapper /*dsp1_mapper*/, bool & dispatched)
 {
   // TODO: Add DSP-1 address mapping
   dispatched = false;
@@ -793,6 +790,8 @@ ea_t xlat(ea_t address)
         break;
       case SuperFamicomCartridge::SPC7110ROM:
         remapped_address = xlat_spc7110(address, dispatched);
+        break;
+      default:
         break;
     }
   }

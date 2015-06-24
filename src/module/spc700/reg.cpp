@@ -33,6 +33,9 @@ static const char *const RegNames[] =
   "P",
 };
 
+CASSERT(qnumber(RegNames) == rLast);
+
+
 //----------------------------------------------------------------------
 //       Prepare global variables & defines for ../iocommon.cpp
 //----------------------------------------------------------------------

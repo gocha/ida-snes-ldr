@@ -19,7 +19,7 @@ static bool map_psram(linput_t *li, uint32 psram_start_in_file)
   if ( succeeded )
     succeeded = true;
   else
-    loader_failure("Failed adding RAM segment\n", psram_start_in_file, s.startEA, s.endEA);
+    loader_failure("Failed adding RAM segment\n");
 
   return succeeded;
 }

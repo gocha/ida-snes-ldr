@@ -163,7 +163,7 @@ bool idaapi outop(op_t &x)
 }
 
 //----------------------------------------------------------------------
-inline bool forced_print(ea_t ea, int reg)
+inline bool forced_print(ea_t ea, int /*reg*/)
 {
   return isFunc(get_flags_novalue(ea));
 }
@@ -210,19 +210,25 @@ void idaapi out(void)
   char buf[MAXSTR];
 
   init_output_buffer(buf, sizeof(buf));
-  if ( inf.s_showbads && cmd.Op1.type == o_displ &&
-       (cmd.Op1.phrase == rX || cmd.Op1.phrase == rY) &&
-       cmd.Op1.value == uchar(cmd.Op1.value) ) OutBadInstruction();
+  if ( inf.s_showbads
+    && cmd.Op1.type == o_displ
+    && (cmd.Op1.phrase == rX || cmd.Op1.phrase == rY)
+    && cmd.Op1.value == uchar(cmd.Op1.value) )
+  {
+    OutBadInstruction();
+  }
 
   OutMnem();
   out_one_operand(0);
-  if ( cmd.Op2.type != o_void ) {
+  if ( cmd.Op2.type != o_void )
+  {
     out_symbol(',');
     OutChar(' ');
     out_one_operand(1);
   }
 
-  if ( isVoid(cmd.ea,uFlag,0) ) OutImmChar(cmd.Op1);
+  if ( isVoid(cmd.ea,uFlag,0) )
+    OutImmChar(cmd.Op1);
 
   term_output_buffer();
   gl_comm = 1;
@@ -254,8 +260,10 @@ void idaapi segstart(ea_t ea)
     printf_line(inf.indent, COLSTR("%s.segment %s",SCOLOR_ASMDIR),
                    (ash.uflag & UAS_NOSEG) ? ash.cmnt : "",
                    name);
-    if ( ash.uflag & UAS_SELSG ) MakeLine(name, inf.indent);
-    if ( ash.uflag & UAS_CDSEG ) MakeLine(COLSTR("CSEG",SCOLOR_ASMDIR), inf.indent);  // XSEG - eXternal memory
+    if ( ash.uflag & UAS_SELSG )
+      MakeLine(name, inf.indent);
+    if ( ash.uflag & UAS_CDSEG )
+      MakeLine(COLSTR("CSEG",SCOLOR_ASMDIR), inf.indent);  // XSEG - eXternal memory
   }
   if ( inf.s_org )
   {

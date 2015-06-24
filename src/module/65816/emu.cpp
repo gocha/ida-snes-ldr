@@ -260,7 +260,8 @@ int idaapi emu(void)
     case M65816_plb:
       {
         int32 val = backtrack_value(cmd.ea, 1, BT_STACK);
-        if ( val != -1 ) {
+        if ( val != -1 )
+        {
           split_srarea(cmd.ea + cmd.size, rB, val, SR_auto);
           split_srarea(cmd.ea + cmd.size, rDs, val << 12, SR_auto);
         }

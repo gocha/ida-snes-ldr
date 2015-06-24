@@ -6,21 +6,22 @@ This file originally comes from the 'higan' emulator
 used in agreement with the terms of the GPLv3 license.
 
 Hex-Rays has been granted, by written consent of its author, the use
-of this file within the scope of the 'snes' loader plugin for the
-Interactive DisAssembler (IDA), without requiring Hex-Rays to release
-any other source code that composes the Interactive DisAssembler (or
-any of its plugins.)
+of this file within the scope of the 'snes' loader plugin, as well as
+within the scope of the '65816' processor module for the Interactive
+DisAssembler, without requiring Hex-Rays to release any other source code
+that composes the Interactive DisAssembler (or any of its plugins.)
 This special license agreement extends to anyone who may want to
-modify, re-compile & re-link the 'snes' loader.
+modify, re-compile & re-link the 'snes' loader or the '65816' processor
+module.
 
 The stated agreement stands only for use of this file within the
-'snes' loader plugin for the Interactive DisAssembler, and cannot
-be applied to any other project (other Interactive DisAssembler
-plugin, or unrelated project.)
+'snes' loader plugin and the '65816' processor module for the Interactive
+DisAssembler, and cannot be applied to any other project (other
+Interactive DisAssembler plugin, or unrelated project.)
 
 Should this file be included in another project than the 'snes' loader
-for the Interactive DisAssembler, the original GPLv3 licensing terms
-will apply.
+or the '65816' processor module for the Interactive DisAssembler, the
+original GPLv3 licensing terms will apply.
 */
 
 // This file is included from the loader module and the processor module
@@ -317,13 +318,13 @@ void SuperFamicomCartridge::read_header(linput_t *li) {
 
   const uint8 mapperid = header[Mapper];
   const uint8 rom_type = header[RomType];
-  const uint8 rom_size = header[RomSize];
+  const uint8 lrom_size = header[RomSize];
   const uint8 company  = header[Company];
   const uint8 regionid = header[CartRegion] & 0x7f;
 
   ram_size = 1024 << (header[RamSize] & 7);
   if(ram_size == 1024) ram_size = 0;  //no RAM present
-  if(rom_size == 0 && ram_size) ram_size = 0;  //fix for Bazooka Blitzkrieg's malformed header (swapped ROM and RAM sizes)
+  if(lrom_size == 0 && ram_size) ram_size = 0;  //fix for Bazooka Blitzkrieg's malformed header (swapped ROM and RAM sizes)
 
   //0, 1, 13 = NTSC; 2 - 12 = PAL
   region = (regionid <= 1 || regionid >= 13) ? NTSC : PAL;
@@ -492,11 +493,11 @@ void SuperFamicomCartridge::read_header(linput_t *li) {
     has_obc1 = true;
   }
 
-  if(mapperid == 0x30 && rom_type == 0xf6 && rom_size >= 10) {
+  if(mapperid == 0x30 && rom_type == 0xf6 && lrom_size >= 10) {
     has_st010 = true;
   }
 
-  if(mapperid == 0x30 && rom_type == 0xf6 && rom_size < 10) {
+  if(mapperid == 0x30 && rom_type == 0xf6 && lrom_size < 10) {
     has_st011 = true;
   }
 
