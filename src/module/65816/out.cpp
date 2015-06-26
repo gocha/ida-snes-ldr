@@ -72,23 +72,15 @@ static void out_addr_near_b(op_t &x)
 //----------------------------------------------------------------------
 static void out_addr_near(op_t &x)
 {
-  sel_t pb = codeSeg(x.addr, x.n);
-  if ( pb != BADSEL )
-  {
-    ea_t orig_ea = (pb << 16) + x.addr;
-    ea_t ea = xlat(orig_ea);
+  ea_t orig_ea = toEA(codeSeg(x.addr, x.n), x.addr);
+  ea_t ea = xlat(orig_ea);
 
-    if ( !out_name_expr(x, ea, BADADDR) )
-    {
-      out_tagon(COLOR_ERROR);
-      OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
-      out_tagoff(COLOR_ERROR);
-      QueueSet(Q_noName, cmd.ea);
-    }
-  }
-  else
+  if ( !out_name_expr(x, ea, BADADDR) )
   {
+    out_tagon(COLOR_ERROR);
     OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
+    out_tagoff(COLOR_ERROR);
+    QueueSet(Q_noName, cmd.ea);
   }
 }
 
