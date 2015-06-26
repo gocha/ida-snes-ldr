@@ -4,7 +4,7 @@ include ../allmake.mak
 ALLDIRS=w32run aout elf hex nlm aif aof lx pe omf coff dbg ne dex \
         pilot dos pef qnx javaldr rt11 exp os9 n64 psx epoc amiga \
         hpsom geos mach-o dump xbe tmobj intelomf mas is5x sbn osk \
-        bochsrc windmp snes script_ldrs $(ADDITIONAL_LOADERS)
+        bochsrc windmp snes snes_spc script_ldrs $(ADDITIONAL_LOADERS)
 
 # remove any missing loaders from the list
 ALLDIRS:=$(wildcard $(ALLDIRS))

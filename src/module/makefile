@@ -14,7 +14,7 @@ DIRS32=pc                                                                      \
        m16c m32r m740 m7700 m7900 mc6812 mc6816 mc68k mc68xx mips mn102 mcore  \
        oakdsp                                                                  \
        pdp11 pic ppc                                                           \
-       sam8 sh3 sparc st20 st7 st9                                             \
+       sam8 sh3 sparc spc700 st20 st7 st9                                      \
        tlcs900                                                                 \
        tms320c1 tms320c3 tms320c5 tms320c54 tms320c55 tms320c6 tricore trimedia\
        xa                                                                      \
