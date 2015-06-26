@@ -47,12 +47,35 @@ static void out_dp(op_t &x)
 }
 
 //----------------------------------------------------------------------
-static void out_addr_near(op_t &x)
+static void out_addr_near_b(op_t &x)
 {
   sel_t db = get_segreg(cmd.ea, rB);
   if ( db != BADSEL )
   {
     ea_t orig_ea = (db << 16) + x.addr;
+    ea_t ea = xlat(orig_ea);
+
+    if ( !out_name_expr(x, ea, BADADDR) )
+    {
+      out_tagon(COLOR_ERROR);
+      OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
+      out_tagoff(COLOR_ERROR);
+      QueueSet(Q_noName, cmd.ea);
+    }
+  }
+  else
+  {
+    OutValue(x,OOF_ADDR|OOFS_NOSIGN|OOFW_16);
+  }
+}
+
+//----------------------------------------------------------------------
+static void out_addr_near(op_t &x)
+{
+  sel_t pb = codeSeg(x.addr, x.n);
+  if ( pb != BADSEL )
+  {
+    ea_t orig_ea = (pb << 16) + x.addr;
     ea_t ea = xlat(orig_ea);
 
     if ( !out_name_expr(x, ea, BADADDR) )
@@ -176,7 +199,7 @@ bool idaapi outop(op_t &x)
             ea = orig_ea = x.addr;
           else
             ea = calc_addr(x, &orig_ea);
-          out_addr_near(x);
+          out_addr_near_b(x);
         }
 
         if ( cmd.indirect )
@@ -264,17 +287,17 @@ bool idaapi outop(op_t &x)
           break;
         case rAbsi:
           out_symbol('(');
-          out_addr_near(x);
+          out_addr_near_b(x);
           out_symbol(')');
           break;
         case rAbsiL:
           out_symbol('[');
-          out_addr_near(x);
+          out_addr_near_b(x);
           out_symbol(']');
           break;
         case rAbsX:
         case rAbsY:
-          out_addr_near(x);
+          out_addr_near_b(x);
           out_symbol(',');
           OutChar(' ');
           out_register(x.phrase == rAbsY ? "Y" : "X");
@@ -295,7 +318,7 @@ bool idaapi outop(op_t &x)
           break;
         case rAbsXi:
           out_symbol('(');
-          out_addr_near(x);
+          out_addr_near(x); // jmp, jsr
           out_symbol(',');
           OutChar(' ');
           out_register("X");

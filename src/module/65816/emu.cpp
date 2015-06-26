@@ -59,9 +59,12 @@ MAKE_IMMD:
         case rAbsi:     // "(abs)"
         case rAbsX:     // "abs, X"
         case rAbsY:     // "abs, Y"
-        case rAbsXi:    // "(abs,X)"
         case rAbsiL:    // "long(abs)"
           ea = toEA(dataSeg_op(x.n), x.addr);
+          goto MAKE_DREF;
+
+        case rAbsXi:    // "(abs,X)"
+          ea = toEA(codeSeg(cmd.ea, x.n), x.addr); // jmp, jsr
           goto MAKE_DREF;
 
         case rAbsLX:    // "long abs, X"
