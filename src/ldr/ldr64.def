@@ -1,9 +1,0 @@
-
-STUB        '..\STUB.'
-
-DESCRIPTION 'IDA input file loader module'
-
-EXPORTS
-;#pe-
-            LDSC       @1 DATA,NONAME
-;#pe*
