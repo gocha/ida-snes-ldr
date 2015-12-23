@@ -54,11 +54,11 @@ static void map_lorom_sram_offset(uint32 ram_size, uint8 start_bank)
   uint32 ram_chunks = (ram_size + bank_size - 1) / bank_size;
   for ( uint32 mapped = 0, bank = start_bank; mapped < ram_chunks; bank++, mapped++ )
   {
-    if (bank == 0x7e)
+    if ( bank == 0x7e )
       bank = 0xfe;
 
     segment_t s;
-    s.startEA = (bank << 16);
+    s.startEA = uint32(bank << 16);
     s.endEA   = s.startEA + bank_size;
     s.type    = SEG_IMEM;
     s.sel     = allocate_selector(s.startEA >> 4);
@@ -79,7 +79,7 @@ static void map_hirom_sram_offset(uint32 ram_size, uint8 start_bank)
   for ( uint32 mapped = 0, bank = start_bank; mapped < ram_chunks; bank++, mapped++ )
   {
     segment_t s;
-    s.startEA = (bank << 16) + 0x6000;
+    s.startEA = uint32((bank << 16) + 0x6000);
     s.endEA   = s.startEA + bank_size;
     s.type    = SEG_IMEM;
     s.sel     = allocate_selector(s.startEA >> 4);
@@ -114,7 +114,7 @@ static void map_superfx_sram(uint32 ram_size)
   for ( uint32 mapped = 0, bank = 0x70; mapped < ram_chunks; bank++, mapped++ )
   {
     segment_t s;
-    s.startEA = bank << 16;
+    s.startEA = uint32(bank << 16);
     s.endEA   = s.startEA + bank_size;
     s.type    = SEG_IMEM;
     s.sel     = allocate_selector(s.startEA >> 4);
@@ -156,7 +156,7 @@ static void map_sa1_bwram(uint32 ram_size)
   for ( uint32 mapped = 0, bank = 0x40; mapped < ram_chunks; bank++, mapped++ )
   {
     segment_t s;
-    s.startEA = bank << 16;
+    s.startEA = uint32(bank << 16);
     s.endEA   = s.startEA + bank_size;
     s.type    = SEG_IMEM;
     s.sel     = allocate_selector(s.startEA >> 4);
@@ -223,7 +223,7 @@ static sel_t map_lorom_offset(linput_t *li, uint32 rom_start_in_file, uint32 rom
 
     uint32 map_size = qmin(0x8000, rom_size - (0x8000 * mapped));
 
-    ea_t start         = (bank << 16) + 0x8000;
+    ea_t start         = uint32((bank << 16) + 0x8000);
     ea_t end           = start + 0x8000;
     uint32 off_in_file = rom_start_in_file + offset + (mapped << 15);
 
@@ -250,14 +250,14 @@ static sel_t map_hirom_offset(linput_t *li, uint32 rom_start_in_file, uint32 rom
 
   // map rom to banks
   uint32 chunks = (rom_size + 0x10000 - 1) / 0x10000;
-  for (uint32 mapped = 0, bank = start_bank; mapped < chunks; bank++, mapped++ )
+  for ( uint32 mapped = 0, bank = start_bank; mapped < chunks; bank++, mapped++ )
   {
     if ( bank == 0x7e || bank == 0x7f )
       continue;
 
     uint32 map_size = qmin(0x10000, rom_size - (0x10000 * mapped));
 
-    ea_t start         = bank << 16;
+    ea_t start         = uint32(bank << 16);
     ea_t end           = start + 0x10000;
     uint32 off_in_file = rom_start_in_file + offset + (mapped << 16);
     if ( !file2base(li, off_in_file, start, start + map_size, FILEREG_PATCHABLE) )
@@ -493,11 +493,17 @@ int idaapi accept_file(
     return 0;
 
   SuperFamicomCartridge cartridge(li);
-  unsigned score = cartridge.score_header(li, cartridge.header_offset);
+  unsigned score = SuperFamicomCartridge::score_header(li, cartridge.header_offset);
 
-  const int ACCEPTABLE_SCORE_TRESHOLD = 8;
-  if (score >= ACCEPTABLE_SCORE_TRESHOLD &&
-      cartridge.type != SuperFamicomCartridge::TypeUnknown)
+  // It is enough to have the first byte of the supposed 'reset vector' match
+  // one of 6 values, to have a treshold of 8. arm_eep0.bin has such a byte.
+  // Thus a treshold of 9 (or more) seems in order. Here are some scores:
+  // - m65816_ffVI.snes: 20
+  // - m65816_pacman.snes: 14
+  // - m65816_z2ybd.snes: 14
+  const int ACCEPTABLE_SCORE_TRESHOLD = 9;
+  if ( score >= ACCEPTABLE_SCORE_TRESHOLD
+    && cartridge.type != SuperFamicomCartridge::TypeUnknown )
   {
     qstrncpy(fileformatname, "SNES ROM", MAX_FILE_FORMAT_NAME);
     return 1;
@@ -645,7 +651,7 @@ void idaapi load_file(linput_t *li, ushort /*neflags*/, const char * /*ffn*/)
   ea_t reset_vector_loc = xlat(0xfffc);
   uint16 start_pc = get_word(reset_vector_loc);
   ea_t start_address = xlat(start_pc);
-  inf.startIP  = start_address & 0xffff;
+  inf.startIP = start_address & 0xffff;
 
   // ------- Most important vectors
   // http://en.wikibooks.org/wiki/Super_NES_Programming/SNES_memory_map

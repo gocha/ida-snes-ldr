@@ -853,9 +853,6 @@ void SuperFamicomCartridge::read_hash(const netnode & node)
   has_sa1 = node.hashval_long("has_sa1") != 0;
   has_sharprtc = node.hashval_long("has_sharprtc") != 0;
   has_epsonrtc = node.hashval_long("has_epsonrtc") != 0;
-  has_sa1 = node.hashval_long("has_sa1") != 0;
-  has_sharprtc = node.hashval_long("has_sharprtc") != 0;
-  has_epsonrtc = node.hashval_long("has_epsonrtc") != 0;
   has_sdd1 = node.hashval_long("has_sdd1") != 0;
   has_spc7110 = node.hashval_long("has_spc7110") != 0;
   has_cx4 = node.hashval_long("has_cx4") != 0;

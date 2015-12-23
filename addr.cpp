@@ -57,9 +57,9 @@ static ea_t xlat_cx4(ea_t address, bool & dispatched)
     && bank >= 0x70
     && bank <= 0x77
     && addr <= 0x7fff )
-      {
-        return address;
-      }
+  {
+    return address;
+  }
 
   // mirror 00-7d => 80-fd (excluding SRAM)
   if ( bank <= 0x7d )
@@ -112,7 +112,8 @@ static ea_t xlat_spc7110(ea_t address, bool & dispatched)
       {
         uint32 ram_mask = g_cartridge.ram_size - 1;
         uint32 ram_offset = (((bank & 0x1f) << 13) + (addr - 0x6000)) & ram_mask;
-        return ((0x00 + (ram_offset >> 13)) << 16) + (0x6000 + (ram_offset & 0x1fff));
+        uint32 res = ((ram_offset >> 13) << 16) + (0x6000 + (ram_offset & 0x1fff));
+        return res;
       }
     }
   }
@@ -177,7 +178,8 @@ static ea_t xlat_sdd1(ea_t address, bool & dispatched)
         // LoROM SRAM style
         uint32 ram_mask = g_cartridge.ram_size - 1;
         uint32 ram_offset = (((bank & 0xf) << 15) + (addr & 0x7fff)) & ram_mask;
-        return ((0x70 + (ram_offset >> 15)) << 16) + (ram_offset & 0x7fff);
+        uint32 res = ((0x70 + (ram_offset >> 15)) << 16) + (ram_offset & 0x7fff);
+        return res;
       }
     }
     else if ( ( bank >= 0x20 && bank <= 0x3f ) || ( bank >= 0xa0 && bank <= 0xbf ) )
@@ -187,7 +189,8 @@ static ea_t xlat_sdd1(ea_t address, bool & dispatched)
         // HiROM SRAM style (not usually used?)
         uint32 ram_mask = g_cartridge.ram_size - 1;
         uint32 ram_offset = (((bank & 0x1f) << 13) + (addr - 0x6000)) & ram_mask;
-        return ((0x20 + (ram_offset >> 13)) << 16) + (0x6000 + (ram_offset & 0x1fff));
+        uint32 res = ((0x20 + (ram_offset >> 13)) << 16) + (0x6000 + (ram_offset & 0x1fff));
+        return res;
       }
     }
   }
@@ -238,8 +241,7 @@ static ea_t xlat_lorom(ea_t address, bool & dispatched)
       {
         uint32 ram_mask = g_cartridge.ram_size - 1;
         uint32 ram_offset = (((bank & 0xf) << 15) + (addr & 0x7fff)) & ram_mask;
-
-        ea_t ea = ((0x70 + (ram_offset >> 15)) << 16) + (ram_offset & 0x7fff);
+        uint32 ea = ((0x70 + (ram_offset >> 15)) << 16) + (ram_offset & 0x7fff);
         if ( bank >= 0xfe )
           ea += 0x800000;
         return ea;
@@ -291,7 +293,8 @@ static ea_t xlat_hirom(ea_t address, bool & dispatched)
         // Example: Donkey Kong Country 2 (reads $B0:6000 for 2 kilobytes SRAM)
         uint32 ram_mask = g_cartridge.ram_size - 1;
         uint32 ram_offset = (((bank & 0x1f) << 13) + (addr - 0x6000)) & ram_mask;
-        return ((0x20 + (ram_offset >> 13)) << 16) + (0x6000 + (ram_offset & 0x1fff));
+        uint32 res = ((0x20 + (ram_offset >> 13)) << 16) + (0x6000 + (ram_offset & 0x1fff));
+        return res;
       }
     }
   }
@@ -345,7 +348,8 @@ static ea_t xlat_exlorom(ea_t address, bool & dispatched)
         // LoROM SRAM style
         uint32 ram_mask = g_cartridge.ram_size - 1;
         uint32 ram_offset = (((bank & 0xf) << 15) + (addr & 0x7fff)) & ram_mask;
-        return ((0x70 + (ram_offset >> 15)) << 16) + (ram_offset & 0x7fff);
+        uint32 res = ((0x70 + (ram_offset >> 15)) << 16) + (ram_offset & 0x7fff);
+        return res;
       }
     }
     else if ( ( bank >= 0x20 && bank <= 0x3f ) || ( bank >= 0xa0 && bank <= 0xbf ) )
@@ -355,7 +359,8 @@ static ea_t xlat_exlorom(ea_t address, bool & dispatched)
         // HiROM SRAM style (not usually used?)
         uint32 ram_mask = g_cartridge.ram_size - 1;
         uint32 ram_offset = (((bank & 0x1f) << 13) + (addr - 0x6000)) & ram_mask;
-        return ((0x20 + (ram_offset >> 13)) << 16) + (0x6000 + (ram_offset & 0x1fff));
+        uint32 res = ((0x20 + (ram_offset >> 13)) << 16) + (0x6000 + (ram_offset & 0x1fff));
+        return res;
       }
     }
   }
@@ -404,7 +409,8 @@ static ea_t xlat_exhirom(ea_t address, bool & dispatched)
         // HiROM SRAM style
         uint32 ram_mask = g_cartridge.ram_size - 1;
         uint32 ram_offset = (((bank & 0x1f) << 13) + (addr - 0x6000)) & ram_mask;
-        return ((0x20 + (ram_offset >> 13)) << 16) + (0x6000 + (ram_offset & 0x1fff));
+        uint32 res = ((0x20 + (ram_offset >> 13)) << 16) + (0x6000 + (ram_offset & 0x1fff));
+        return res;
       }
     }
     else if ( bank >= 0x70 && bank <= 0x7d )
@@ -416,7 +422,8 @@ static ea_t xlat_exhirom(ea_t address, bool & dispatched)
         // LoROM SRAM style (not usually used?)
         uint32 ram_mask = g_cartridge.ram_size - 1;
         uint32 ram_offset = (((bank & 0xf) << 15) + (addr & 0x7fff)) & ram_mask;
-        return ((0x70 + (ram_offset >> 15)) << 16) + (ram_offset & 0x7fff);
+        uint32 res = ((0x70 + (ram_offset >> 15)) << 16) + (ram_offset & 0x7fff);
+        return res;
       }
     }
   }
@@ -632,13 +639,13 @@ static ea_t xlat_obc1(ea_t address, bool & dispatched)
 //   rom id=program name=dsp1b.program.rom size=0x1800
 //   rom id=data name=dsp1b.data.rom size=0x800
 //   ram id=data size=0x200
-// 
+//
 // when DSP1LoROM1MB:
 //   map id=io address=20-3f,a0-bf:8000-ffff select=0x4000
-// 
+//
 // when DSP1LoROM2MB:
 //   map id=io address=60-6f,e0-ef:0000-7fff select=0x4000
-// 
+//
 // when DSP1HiROM:
 //   map id=io address=00-1f,80-9f:6000-7fff select=0x1000
 static ea_t xlat_dsp1(ea_t address, SuperFamicomCartridge::DSP1MemoryMapper /*dsp1_mapper*/, bool & dispatched)
