@@ -3,6 +3,8 @@ SNES Loader for IDA
 
 This is a IDA loader plugin for Super Nintendo Entertainment System / Super Famicom (SNES / SFC) ROM (*.smc; *.sfc)
 
+With [65816 processor plugin](https://github.com/gocha/ida-65816-module), you can load a SNES cartridge file into IDA.
+
 **NOTICE**:
 The SNES loader was initially forked from [IDA SDK 6.8](https://www.hex-rays.com/products/ida/support/download.shtml),
 published by [Hex-Rays](https://www.hex-rays.com/).
